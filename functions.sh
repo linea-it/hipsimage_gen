@@ -1,7 +1,5 @@
 #!/bin/bash
 
-. env.sh
-
 if [ -z $HISP_TITLE ];
 then
   HISP_TITLE='DR2'
@@ -17,7 +15,6 @@ then
   PIXELCUT_G='-1.23 508.7 log'
 fi
 
-
 if [ -z $PIXELCUT_R ];
 then
   PIXELCUT_R='-2.357 1039 log'
@@ -28,6 +25,18 @@ then
   PIXELCUT_I='-2.763 881.7 log'
 fi
 
+if [ -z $ALADIN_MAXMEM ];
+then
+  ALADIN_MAXMEM=$(expr `grep MemTotal /proc/meminfo | awk '{print $2}'` / 1024)
+fi
+
+if [ -z ALADIN_MAXTHREADS ];
+then
+  ALADIN_MAXTHREADS=$(cat /proc/cpuinfo | grep processor | wc -l)
+fi
+
+ALADIN_CMD="java -Xmx${ALADIN_MAXMEM}m -jar $ALADINPATH/AladinBeta.jar -hipsgen maxthread=$ALADIN_MAXTHREADS hips_creator='LIneA' obs_title='$HISP_TITLE' creator_did='$CREATOR_DID'"
+
 function get_config_per_band() {
   case $1 in
     'g') echo $PIXELCUT_G ;;
@@ -35,10 +44,6 @@ function get_config_per_band() {
     'i') echo $PIXELCUT_I ;;
   esac
 }
-
-MEM=$(expr `grep MemTotal /proc/meminfo | awk '{print $2}'` / 1024)
-THREADS=$(cat /proc/cpuinfo | grep processor | wc -l)
-ALADIN_CMD="java -Xmx${MEM}m -jar $ALADINPATH/AladinBeta.jar -hipsgen maxthread=$THREADS hips_creator='LIneA' obs_title='$HISP_TITLE' creator_did='$CREATOR_DID'"
 
 function create_dir() {
   OUTPUT_DIR=$1
@@ -63,7 +68,7 @@ function create_hips_colour() {
 
   cd $OUTPUT_DIR
   mkdir RGB
-  touch RGB/Moc.fits
+  touch RGB/Moc.fits    # note: apparently, ALADIN expects Moc.fits to exist before executing the RGB HiPS.
 
   PIXELCUT_G=$(get_config_per_band 'g')
   PIXELCUT_R=$(get_config_per_band 'r')
@@ -71,10 +76,4 @@ function create_hips_colour() {
 
   echo "Generation of one colour HiPS from 3 greyscale HiPS"
   $ALADIN_CMD inRed="'./i/'" inGreen="'./r/'" inBlue="'./g/'" cmRed="'${PIXELCUT_I}'" cmGreen="'${PIXELCUT_R}'" cmBlue="'${PIXELCUT_G}'" out='./RGB' RGB
-}
-
-function clear_trash() {
-  rm -rf $OUTPUT_DIR/g/
-  rm -rf $OUTPUT_DIR/r/
-  rm -rf $OUTPUT_DIR/i/
 }

@@ -31,8 +31,8 @@ This guide outlines the steps required to install and run the HiPS (Hierarchical
     | PIXELCUT_G | no | "-1.23 508.7 log" |  Allows you to specify how pixels are mapped in this value range to g band|
     | PIXELCUT_R | no | "-2.357 1039 log" |  Allows you to specify how pixels are mapped in this value range to r band|
     | PIXELCUT_I | no | "-2.763 881.7 log" |  Allows you to specify how pixels are mapped in this value range to i band|
-    | ALADIN_MAXMEM | no | all available in the system | Maximum memory used |
-    | ALADIN_MAXTHREADS | no | all available in the system | Maximum threads used |
+    | HIPS_MAXMEM | no | all available in the system | Maximum memory used (in GB)|
+    | HIPS_MAXTHREADS | no | all available in the system | Maximum threads used |
     | OUTPUT_DIR | no | './outputs' | Output dir |
 
 4. Prepare source images:

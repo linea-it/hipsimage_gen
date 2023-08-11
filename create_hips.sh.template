@@ -16,8 +16,8 @@ export ALADINPATH='<path/to/aladin/dir>'
 # export PIXELCUT_R=            # default: "-2.357 1039 log"
 # export PIXELCUT_I=            # default: "-2.763 881.7 log"
 
-# export ALADIN_MAXMEM=         # Max. memory - default: all available in the system
-# export ALADIN_MAXTHREADS=     # Max. threads - default:  all available in the system
+# export HIPS_MAXMEM=         # Max. memory (in GB) - default: all available in the system
+# export HIPS_MAXTHREADS=     # Max. threads - default:  all available in the system
 
 export OUTPUT_DIR='./outputs'   # Output dir
 

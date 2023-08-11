@@ -25,23 +25,24 @@ then
   PIXELCUT_I='-2.763 881.7 log'
 fi
 
-if [ -z $ALADIN_MAXMEM ];
+if [ -z $HIPS_MAXMEM ];
 then
-  ALADIN_MAXMEM=$(expr `grep MemTotal /proc/meminfo | awk '{print $2}'` / 1024)
+  HIPS_MAXMEM=$(expr `grep MemTotal /proc/meminfo | awk '{print $2}'` / 1024 / 1024)
 fi
 
-if [ -z ALADIN_MAXTHREADS ];
+if [ -z HIPS_MAXTHREADS ];
 then
-  ALADIN_MAXTHREADS=$(cat /proc/cpuinfo | grep processor | wc -l)
+  HIPS_MAXTHREADS=$(cat /proc/cpuinfo | grep processor | wc -l)
 fi
 
-ALADIN_CMD="java -Xmx${ALADIN_MAXMEM}m -jar $ALADINPATH/AladinBeta.jar -hipsgen maxthread=$ALADIN_MAXTHREADS hips_creator='LIneA' obs_title='$HISP_TITLE' creator_did='$CREATOR_DID'"
+ALADIN_CMD="java -Xmx${HIPS_MAXMEM}g -jar $ALADINPATH/AladinBeta.jar -hipsgen -nocolor maxthread=$HIPS_MAXTHREADS"
+ALADIN_CMD="$ALADIN_CMD hips_creator=LIneA obs_title=$HISP_TITLE creator_did=$CREATOR_DID"
 
 function get_config_per_band() {
   case $1 in
-    'g') echo "'$PIXELCUT_G'" ;;
-    'r') echo "'$PIXELCUT_R'" ;;
-    'i') echo "'$PIXELCUT_I'" ;;
+    'g') echo ${PIXELCUT_G} ;;
+    'r') echo ${PIXELCUT_R} ;;
+    'i') echo ${PIXELCUT_I} ;;
   esac
 }
 
@@ -59,8 +60,9 @@ function create_hips_per_band() {
   cd $OUTPUT_DIR
   mkdir -p $BAND
 
-  echo "Create initial hips per band"
-  $ALADIN_CMD incremental=true in="$IMGS" out="./$BAND" pixelcut="$PIXELCUT" INDEX TILES JPEG
+  echo "Create initial hips per band: "$BAND
+  $ALADIN_CMD incremental=true in=$IMGS out=./$BAND pixelcut="'${PIXELCUT}'" INDEX TILES JPEG 2>&1 >> $OUTPUT_DIR/hips_$BAND.log
+
 }
 
 function create_hips_colour() {
@@ -75,5 +77,5 @@ function create_hips_colour() {
   PIXELCUT_I=$(get_config_per_band 'i')
 
   echo "Generation of one colour HiPS from 3 greyscale HiPS"
-  $ALADIN_CMD inRed='./i/' inGreen='./r/' inBlue='./g/' cmRed="${PIXELCUT_I}" cmGreen="${PIXELCUT_R}" cmBlue="${PIXELCUT_G}" out='./RGB' RGB
+  $ALADIN_CMD inRed=./i/ inGreen=./r/ inBlue=./g/ cmRed="'${PIXELCUT_I}'" cmGreen="'${PIXELCUT_R}'" cmBlue="'${PIXELCUT_G}'" out=./RGB RGB 2>&1 >> $OUTPUT_DIR/hips_RGB.log
 }

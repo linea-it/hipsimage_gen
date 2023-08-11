@@ -39,9 +39,9 @@ ALADIN_CMD="java -Xmx${ALADIN_MAXMEM}m -jar $ALADINPATH/AladinBeta.jar -hipsgen 
 
 function get_config_per_band() {
   case $1 in
-    'g') echo $PIXELCUT_G ;;
-    'r') echo $PIXELCUT_R ;;
-    'i') echo $PIXELCUT_I ;;
+    'g') echo "'$PIXELCUT_G'" ;;
+    'r') echo "'$PIXELCUT_R'" ;;
+    'i') echo "'$PIXELCUT_I'" ;;
   esac
 }
 
@@ -60,14 +60,14 @@ function create_hips_per_band() {
   mkdir -p $BAND
 
   echo "Create initial hips per band"
-  $ALADIN_CMD incremental=true in="'$IMGS'" out="'./$BAND'" pixelcut="'$PIXELCUT'" INDEX TILES JPEG
+  $ALADIN_CMD incremental=true in="$IMGS" out="./$BAND" pixelcut="$PIXELCUT" INDEX TILES JPEG
 }
 
 function create_hips_colour() {
   OUTPUT_DIR=$1
 
   cd $OUTPUT_DIR
-  mkdir RGB
+  mkdir -p RGB
   touch RGB/Moc.fits    # note: apparently, ALADIN expects Moc.fits to exist before executing the RGB HiPS.
 
   PIXELCUT_G=$(get_config_per_band 'g')
@@ -75,5 +75,5 @@ function create_hips_colour() {
   PIXELCUT_I=$(get_config_per_band 'i')
 
   echo "Generation of one colour HiPS from 3 greyscale HiPS"
-  $ALADIN_CMD inRed="'./i/'" inGreen="'./r/'" inBlue="'./g/'" cmRed="'${PIXELCUT_I}'" cmGreen="'${PIXELCUT_R}'" cmBlue="'${PIXELCUT_G}'" out='./RGB' RGB
+  $ALADIN_CMD inRed='./i/' inGreen='./r/' inBlue='./g/' cmRed="${PIXELCUT_I}" cmGreen="${PIXELCUT_R}" cmBlue="${PIXELCUT_G}" out='./RGB' RGB
 }

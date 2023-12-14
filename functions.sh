@@ -58,24 +58,28 @@ function create_hips_per_band() {
   OUTPUT_DIR=$3
 
   cd $OUTPUT_DIR
-  mkdir -p $BAND
+  mkdir -p $BAND tmp_$BAND
 
   echo "Create initial hips per band: "$BAND
-  $ALADIN_CMD incremental=true in=$IMGS out=./$BAND pixelcut="'${PIXELCUT}'" INDEX TILES JPEG 2>&1 >> $OUTPUT_DIR/hips_$BAND.log
+  $ALADIN_CMD incremental=true in=$IMGS out=./$BAND mode=keeptile cache=./tmp_$BAND cacheRemoveOnExit=false pixelcut="'${PIXELCUT}'" INDEX TILES JPEG 2>&1 >> $OUTPUT_DIR/hips_$BAND.log
 
 }
 
 function create_hips_colour() {
   OUTPUT_DIR=$1
-
   cd $OUTPUT_DIR
   mkdir -p RGB
   touch RGB/Moc.fits    # note: apparently, ALADIN expects Moc.fits to exist before executing the RGB HiPS.
 
-  PIXELCUT_G=$(get_config_per_band 'g')
-  PIXELCUT_R=$(get_config_per_band 'r')
-  PIXELCUT_I=$(get_config_per_band 'i')
-
   echo "Generation of one colour HiPS from 3 greyscale HiPS"
-  $ALADIN_CMD inRed=./i/ inGreen=./r/ inBlue=./g/ cmRed="'${PIXELCUT_I}'" cmGreen="'${PIXELCUT_R}'" cmBlue="'${PIXELCUT_G}'" out=./RGB RGB 2>&1 >> $OUTPUT_DIR/hips_RGB.log
+  $ALADIN_CMD inRed=./i/ inGreen=./r/ inBlue=./g/ luptonM="0.02/0.02/0.02" luptonS="0.005/0.005/0.007" luptonQ="30/30/30" out=./RGB RGB 2>&1 >> $OUTPUT_DIR/hips_RGB.log
+}
+
+function build_tree() {
+  OUTPUT_DIR=$1
+  FRAME=${2:-equatorial}
+
+  echo "(Re)build HiPS tree. (Frame: $FRAME)"
+  echo "--> outputdir: "$OUTPUT_DIR
+  $ALADIN_CMD out=$OUTPUT_DIR frame=$FRAME TREE 2>&1 >> ./hips_tree.log
 }

@@ -1,38 +1,38 @@
 #!/bin/bash
 
-if [ -z $HISP_TITLE ];
+if [ -z "$HISP_TITLE" ];
 then
   HISP_TITLE='DR2'
 fi
 
-if [ -z $CREATOR_DID ];
+if [ -z "$CREATOR_DID" ];
 then
   CREATOR_DID='CDS/P/DES/DR2'
 fi
 
-if [ -z $PIXELCUT_G ];
+if [ -z "$PIXELCUT_G" ];
 then
-  PIXELCUT_G='-1.23 508.7 log'
+  PIXELCUT_G='-1.2 400 asinh'
 fi
 
-if [ -z $PIXELCUT_R ];
+if [ -z "$PIXELCUT_R" ];
 then
-  PIXELCUT_R='-2.357 1039 log'
+  PIXELCUT_R='-1.2 400 asinh'
 fi
 
-if [ -z $PIXELCUT_I ];
+if [ -z "$PIXELCUT_I" ];
 then
-  PIXELCUT_I='-2.763 881.7 log'
+  PIXELCUT_I='-1 400 asinh'
 fi
 
-if [ -z $HIPS_MAXMEM ];
+if [ -z "$HIPS_MAXMEM" ];
 then
   HIPS_MAXMEM=$(expr `grep MemTotal /proc/meminfo | awk '{print $2}'` / 1024 / 1024)
 fi
 
-if [ -z HIPS_MAXTHREADS ];
+if [ -z $HIPS_MAXTHREADS ];
 then
-  HIPS_MAXTHREADS=$(cat /proc/cpuinfo | grep processor | wc -l)
+  HIPS_MAXTHREADS=`cat /proc/cpuinfo | grep processor | wc -l`
 fi
 
 ALADIN_CMD="java -Xmx${HIPS_MAXMEM}g -jar $ALADINPATH/AladinBeta.jar -hipsgen -nocolor maxthread=$HIPS_MAXTHREADS"
@@ -61,7 +61,7 @@ function create_hips_per_band() {
   mkdir -p $BAND tmp_$BAND
 
   echo "Create initial hips per band: "$BAND
-  $ALADIN_CMD incremental=true in=$IMGS out=./$BAND mode=keeptile cache=./tmp_$BAND cacheRemoveOnExit=false pixelcut="'${PIXELCUT}'" INDEX TILES JPEG 2>&1 >> $OUTPUT_DIR/hips_$BAND.log
+  $ALADIN_CMD incremental=true in=$IMGS out=./$BAND mode=mean cache=./tmp_$BAND cacheRemoveOnExit=false pixelcut="'${PIXELCUT}'" INDEX TILES PNG 2>&1 >> $OUTPUT_DIR/hips_$BAND.log
 
 }
 

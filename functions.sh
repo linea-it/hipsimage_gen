@@ -1,38 +1,38 @@
 #!/bin/bash
 
-if [ -z $HISP_TITLE ];
+if [ -z "$HISP_TITLE" ];
 then
   HISP_TITLE='DR2'
 fi
 
-if [ -z $CREATOR_DID ];
+if [ -z "$CREATOR_DID" ];
 then
   CREATOR_DID='CDS/P/DES/DR2'
 fi
 
-if [ -z $PIXELCUT_G ];
+if [ -z "$PIXELCUT_G" ];
 then
-  PIXELCUT_G='-1.23 508.7 log'
+  PIXELCUT_G='-1.2 400 asinh'
 fi
 
-if [ -z $PIXELCUT_R ];
+if [ -z "$PIXELCUT_R" ];
 then
-  PIXELCUT_R='-2.357 1039 log'
+  PIXELCUT_R='-1.2 400 asinh'
 fi
 
-if [ -z $PIXELCUT_I ];
+if [ -z "$PIXELCUT_I" ];
 then
-  PIXELCUT_I='-2.763 881.7 log'
+  PIXELCUT_I='-1 400 asinh'
 fi
 
-if [ -z $HIPS_MAXMEM ];
+if [ -z "$HIPS_MAXMEM" ];
 then
   HIPS_MAXMEM=$(expr `grep MemTotal /proc/meminfo | awk '{print $2}'` / 1024 / 1024)
 fi
 
-if [ -z HIPS_MAXTHREADS ];
+if [ -z $HIPS_MAXTHREADS ];
 then
-  HIPS_MAXTHREADS=$(cat /proc/cpuinfo | grep processor | wc -l)
+  HIPS_MAXTHREADS=`cat /proc/cpuinfo | grep processor | wc -l`
 fi
 
 ALADIN_CMD="java -Xmx${HIPS_MAXMEM}g -jar $ALADINPATH/AladinBeta.jar -hipsgen -nocolor maxthread=$HIPS_MAXTHREADS"
@@ -58,24 +58,28 @@ function create_hips_per_band() {
   OUTPUT_DIR=$3
 
   cd $OUTPUT_DIR
-  mkdir -p $BAND
+  mkdir -p $BAND tmp_$BAND
 
   echo "Create initial hips per band: "$BAND
-  $ALADIN_CMD incremental=true in=$IMGS out=./$BAND pixelcut="'${PIXELCUT}'" INDEX TILES JPEG 2>&1 >> $OUTPUT_DIR/hips_$BAND.log
+  $ALADIN_CMD incremental=true in=$IMGS out=./$BAND mode=mean cache=./tmp_$BAND cacheRemoveOnExit=false pixelcut="'${PIXELCUT}'" INDEX TILES PNG 2>&1 >> $OUTPUT_DIR/hips_$BAND.log
 
 }
 
 function create_hips_colour() {
   OUTPUT_DIR=$1
-
   cd $OUTPUT_DIR
   mkdir -p RGB
   touch RGB/Moc.fits    # note: apparently, ALADIN expects Moc.fits to exist before executing the RGB HiPS.
 
-  PIXELCUT_G=$(get_config_per_band 'g')
-  PIXELCUT_R=$(get_config_per_band 'r')
-  PIXELCUT_I=$(get_config_per_band 'i')
-
   echo "Generation of one colour HiPS from 3 greyscale HiPS"
-  $ALADIN_CMD inRed=./i/ inGreen=./r/ inBlue=./g/ cmRed="'${PIXELCUT_I}'" cmGreen="'${PIXELCUT_R}'" cmBlue="'${PIXELCUT_G}'" out=./RGB RGB 2>&1 >> $OUTPUT_DIR/hips_RGB.log
+  $ALADIN_CMD inRed=./i/ inGreen=./r/ inBlue=./g/ luptonM="0.02/0.02/0.02" luptonS="0.005/0.005/0.007" luptonQ="30/30/30" out=./RGB RGB 2>&1 >> $OUTPUT_DIR/hips_RGB.log
+}
+
+function build_tree() {
+  OUTPUT_DIR=$1
+  FRAME=${2:-equatorial}
+
+  echo "(Re)build HiPS tree. (Frame: $FRAME)"
+  echo "--> outputdir: "$OUTPUT_DIR
+  $ALADIN_CMD out=$OUTPUT_DIR frame=$FRAME TREE 2>&1 >> ./hips_tree.log
 }

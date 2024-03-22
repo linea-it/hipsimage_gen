@@ -73,3 +73,7 @@ This guide outlines the steps required to install and run the HiPS (Hierarchical
 ```sh
 time ./create_hips.sh 2> error 1> log & 
 ```
+
+## HIPS execution on LIneA
+https://docs.google.com/document/d/1yn-Uuax0VCVMxA4PsGHCwaoY43Dz-BIj6wrUUEXLGUQ/
+

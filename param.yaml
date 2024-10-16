@@ -1,0 +1,31 @@
+aladin_cmd: /lustre/t0/scratch/users/singulani/slurm-home/aladin
+cwd: /lustre/t0/scratch/users/singulani/hipsimage_gen/proc01
+max_mem: 5
+
+hipsgen:
+  creator_did: CDS/P/DES/DR2
+  maxthread: 20
+  hips_creator: LIneA
+  obs_title: 'LSST DP0'
+  incremental: true
+  mode: mean
+  cacheRemoveOnExit: false
+
+  runs:
+    blue:
+      input_dir: input_g
+      output_dir: output_g
+      pixelcut: "-1.2 400 asinh"
+    red:
+      input_dir: input_r
+      output_dir: output_r
+      pixelcut: "-1.2 400 asinh"
+    green:
+      input_dir: input_i
+      output_dir: output_i
+      pixelcut: "-1 400 asinh"
+    rgb:
+      luptonM: "0.02/0.02/0.02"
+      luptonS: "0.005/0.005/0.007"
+      luptonQ: "30/30/30"
+

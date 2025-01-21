@@ -1,0 +1,34 @@
+aladin_cmd: Aladin.jar  # Aladin path
+cwd: /tmp/proc001
+max_mem: 2
+
+hipsgen:
+  creator_did: CDS/P/<PROJ>/<SURVEY>
+  maxthread: 10
+  hips_creator: LIneA
+  obs_title: 'LSST DP0'
+
+  runs:
+    blue:
+      input_dir: input_g
+      output_dir: output_g
+      pixelcut: "-1.2 400 asinh"
+      mode: mean
+      cache: tmp_g
+    red:
+      input_dir: input_i
+      output_dir: output_i
+      pixelcut: "-1 400 asinh"
+      mode: mean
+      cache: tmp_i
+    green:
+      input_dir: input_r
+      output_dir: output_r
+      pixelcut: "-1.2 400 asinh"
+      mode: mean
+      cache: tmp_r
+    rgb:
+      luptonM: "0.02/0.02/0.02"
+      luptonS: "0.005/0.005/0.007"
+      luptonQ: "30/30/30"
+

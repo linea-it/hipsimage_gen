@@ -1,0 +1,10 @@
+name: hipsimage
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - openjdk=22.0.1
+  - python=3.11.10
+  - pip=24.2
+  - pip:
+      - pyyaml==6.0.2

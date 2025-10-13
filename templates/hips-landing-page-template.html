@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{survey_name}} - HiPS Survey</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        .metadata {
+            background: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .metadata dt {
+            font-weight: bold;
+            color: #34495e;
+            margin-top: 10px;
+        }
+        .metadata dd {
+            margin-left: 20px;
+            color: #7f8c8d;
+        }
+        .links {
+            margin: 20px 0;
+        }
+        .links a {
+            display: inline-block;
+            padding: 10px 15px;
+            background: #3498db;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        .links a:hover {
+            background: #2980b9;
+        }
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #bdc3c7;
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>{{survey_name}}</h1>
+        
+        <div class="metadata">
+            <dl>
+                <dt>Survey Title:</dt>
+                <dd>{{obs_title}}</dd>
+                
+                <dt>Creator:</dt>
+                <dd>{{hips_creator}}</dd>
+                
+                <dt>Publisher DID:</dt>
+                <dd>{{creator_did}}</dd>
+                
+                <dt>Data Release:</dt>
+                <dd>{{hips_release_date}}</dd>
+                
+                <dt>Tile Format:</dt>
+                <dd>{{hips_tile_format}}</dd>
+                
+                <dt>Data Frame:</dt>
+                <dd>{{hips_frame}}</dd>
+                
+                <dt>Pixel Scale:</dt>
+                <dd>{{hips_pixel_scale}} arcsec/pixel</dd>
+                
+                <dt>Order Range:</dt>
+                <dd>{{hips_order_min}} - {{hips_order}}</dd>
+                
+                <dt>Sky Coverage:</dt>
+                <dd>{{moc_sky_fraction}}%</dd>
+            </dl>
+        </div>
+        
+        <div class="links">
+            <a href="properties" target="_blank">Properties File</a>
+            <a href="Moc.fits" target="_blank">Coverage Map (MOC)</a>
+            <a href="Allsky.png" target="_blank">All-Sky Preview</a>
+        </div>
+        
+        <div class="footer">
+            <p>This HiPS survey was generated using Aladin/HipsGen.</p>
+            <p>Generated on: {{generation_date}}</p>
+        </div>
+    </div>
+</body>
+</html>

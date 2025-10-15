@@ -2,7 +2,6 @@
 #SBATCH -J consolidateHIPS
 #SBATCH -p cpu
 #SBATCH -N 1
-#SBATCH --exclusive
 #SBATCH --propagate=NPROC
 
 # Consolidação de regiões do HipsGen

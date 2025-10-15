@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import List, Tuple, Dict, Optional
 from glob import glob
 from yaml import safe_load
+import re
 
 
 # ============================================================================
@@ -50,8 +51,68 @@ def find_partitioned_files(input_pattern: str) -> List[Path]:
 
     return file_paths
 
+def find_fits_images(
+    pattern: str, band_patterns: Dict[str, str] = None
+) -> Dict[str, List[Path]]:
+    """
+    Encontra imagens FITS organizadas por banda
 
-def extract_region_id_from_filename(file_path: Path, id_pattern: str = "auto") -> str:
+    Args:
+        pattern: Padrão glob para encontrar arquivos FITS
+        band_patterns: Dicionário com padrões específicos por banda
+
+    Returns:
+        Dict com listas de arquivos por banda: {'g': [files], 'r': [files], 'i': [files]}
+    """
+    if band_patterns is None:
+        # Padrões padrão para detectar bandas no nome do arquivo
+        band_patterns = {
+            'g': r'.*[_-]g[_-].*\.fits?$|.*[_-]g\.fits?$|.*_g_band.*\.fits?$|.*/g/.*[0-9].fits$',
+            'r': r'.*[_-]r[_-].*\.fits?$|.*[_-]r\.fits?$|.*_r_band.*\.fits?$|.*/r/.*[0-9].fits$',
+            'i': r'.*[_-]i[_-].*\.fits?$|.*[_-]i\.fits?$|.*_i_band.*\.fits?$|.*/i/.*[0-9].fits$'
+        }
+
+    # Encontra todos os arquivos FITS
+    all_fits = glob(pattern, recursive=True)
+    all_fits = [Path(f) for f in sorted(all_fits)]
+
+    print(f"Encontradas {len(all_fits)} imagens FITS:")
+
+    # Organiza por banda
+    images_by_band = {"g": [], "r": [], "i": []}
+    unmatched = []
+
+    for fits_file in all_fits:
+        # filename = fits_file.name.lower()
+        filename = str(fits_file)
+        matched = False
+
+        for band, pattern_regex in band_patterns.items():
+            if re.match(pattern_regex, filename, re.IGNORECASE):
+                images_by_band[band].append(fits_file)
+                matched = True
+                break
+
+        if not matched:
+            unmatched.append(fits_file)
+
+    # Relatório
+    for band in ["g", "r", "i"]:
+        print(f"  Banda {band}: {len(images_by_band[band])} imagens")
+        for img in images_by_band[band][:5]:  # Mostra primeiras 5
+            print(f"    {img}")
+
+    if unmatched:
+        print(f"  Não classificadas: {len(unmatched)}")
+        for img in unmatched[:3]:
+            print(f"    {img}")
+        if len(unmatched) > 3:
+            print(f"    ... e mais {len(unmatched) - 3}")
+
+    return images_by_band
+
+
+def extract_region_id_from_filename(file_path: Path, color: str, id_pattern: str = "auto") -> str:
     """
     Extrai ID da região do nome do arquivo
 
@@ -84,11 +145,11 @@ def extract_region_id_from_filename(file_path: Path, id_pattern: str = "auto") -
 
     elif id_pattern == "auto":
         # Usa o nome do arquivo (sem extensão) como ID
-        return file_path.stem.replace(".", "_").replace("-", "_").replace(",", "_")
+        return f'{color}.{file_path.stem.replace(".", "_").replace("-", "_").replace(",", "_")}'
 
     else:
         # Pattern customizado - por enquanto igual ao auto
-        return file_path.stem.replace(".", "_").replace("-", "_")
+        return f'{color}.{file_path.stem.replace(".", "_").replace("-", "_").replace(",", "_")}'
 
     # Fallback: usa o nome completo
     return str(file_path.name).replace(".", "_").replace("-", "_")
@@ -114,7 +175,7 @@ def create_partition_config(
     Returns:
         Caminho do arquivo de configuração criado
     """
-    config_name = f"partition_{region_id}.config"
+    config_name = f"{region_id}.config"
     config_path = output_dir / config_name
 
     with open(config_path, "w") as f:
@@ -122,18 +183,20 @@ def create_partition_config(
         for key, value in base_config.items():
             if key == "input_dir":
                 # Input é o diretório que contém este arquivo específico
-                input_path = file_path.parent.absolute()
+                input_path = file_path.absolute()
                 f.write(f'in="{input_path}"\n')
             elif key == "output_dir":
                 # Output específico para esta partição
-                output_path = output_dir / f"partition_{region_id}"
+                output_path = output_dir / f"{region_id}"
                 output_path.mkdir(parents=True, exist_ok=True)
                 f.write(f'out="{output_path.absolute()}"\n')
             elif key == "cache":
                 # Cache específico por partição
-                cache_path = output_dir / f"cache_{region_id}"
+                cache_path = output_dir / f"cache/{region_id}"
                 cache_path.mkdir(parents=True, exist_ok=True)
                 f.write(f'cache="{cache_path.absolute()}"\n')
+            elif key == "runs":
+                continue
             else:
                 f.write(f'{key}="{value}"\n')
 
@@ -166,20 +229,22 @@ def create_concat_config(
 
     with open(config_path, "w") as f:
         # Múltiplos inputs para concatenação
-        f.write(f'in="{",".join(input_dirs)}"\n')
+        # f.write(f'in="{",".join(input_dirs)}"\n')
+        f.write(f'in="{input_dirs[0].absolute()}"\n')
 
         # Output do par concatenado
-        concat_output = output_dir / f"concat_level{level}_{pair_id}"
-        concat_output.mkdir(parents=True, exist_ok=True)
-        f.write(f'out="{concat_output.absolute()}"\n')
+        # concat_output = output_dir / f"concat_level{level}_{pair_id}"
+        # concat_output.mkdir(parents=True, exist_ok=True)
+        # f.write(f'out="{concat_output.absolute()}"\n')
+        f.write(f'out="{input_dirs[1].absolute()}"\n')
 
         # Outros parâmetros (sem região específica)
         for key, value in base_config.items():
-            if key not in ["input_dir", "output_dir", "cache"]:
+            if key not in ["input_dir", "output_dir", "cache", "runs"]:
                 f.write(f'{key}="{value}"\n')
 
         # Cache para concatenação
-        cache_path = output_dir / f"cache_concat_level{level}_{pair_id}"
+        cache_path = output_dir / f"cache/concat_level{level}_{pair_id}"
         cache_path.mkdir(parents=True, exist_ok=True)
         f.write(f'cache="{cache_path.absolute()}"\n')
 
@@ -276,6 +341,7 @@ def group_into_pairs(items: List) -> List[List]:
 
 def execute_hierarchical_concatenation(
     partition_outputs: List[str],
+    partition_jobs: List[int],
     base_config: Dict,
     color: str,
     work_dir: Path,
@@ -308,6 +374,7 @@ def execute_hierarchical_concatenation(
     while len(current_level_outputs) > 1:
         level += 1
         pairs = group_into_pairs(current_level_outputs)
+        job_id_pairs = group_into_pairs(current_level_outputs)
         next_level_outputs = []
         level_job_ids = []
 
@@ -317,6 +384,7 @@ def execute_hierarchical_concatenation(
             if len(pair) == 1:
                 # Item sozinho, passa direto para próximo nível
                 next_level_outputs.append(pair[0])
+                level_job_ids.append(job_id_pairs[0])
                 print(f"    Par {pair_idx}: passagem direta de {Path(pair[0]).name}")
                 continue
 
@@ -328,18 +396,16 @@ def execute_hierarchical_concatenation(
             )
 
             # Path da saída desta concatenação
-            concat_output = str(
-                (work_dir / f"concat_level{level}_{pair_id}").absolute()
-            )
+            concat_output = str(pair[1])
             next_level_outputs.append(concat_output)
 
             print(
-                f"    Par {pair_idx}: {Path(pair[0]).name} + {Path(pair[1]).name} → {Path(concat_output).name}"
+                f"    Par {pair_idx}: {Path(pair[0]).name} + {Path(pair[1]).name} → {Path(pair[1]).name}"
             )
 
             if not dry_run:
                 # Submete job de concatenação
-                dependency = None  # Por enquanto, sem dependências entre níveis
+                dependency = ",".join(map(str, job_id_pairs)) if job_id_pairs else None
                 job_id = submit_slurm_job(
                     "concat.sbatch",
                     concat_config,
@@ -372,7 +438,7 @@ def main():
     parser = argparse.ArgumentParser(description="HipsGen com concatenação hierárquica")
     parser.add_argument("config_file", help="Arquivo de configuração YAML")
     parser.add_argument(
-        "input_pattern",
+        "images_pattern",
         help='Padrão glob para encontrar arquivos (ex: "data/*/*.parquet")',
     )
     parser.add_argument("--ra-col", default="ra", help="Nome da coluna RA")
@@ -384,20 +450,27 @@ def main():
         help="Padrão para extrair ID da região",
     )
     parser.add_argument(
-        "--max-partitions", type=int, help="Máximo de partições a processar"
+        "--max-images", type=int, help="Máximo de partições a processar"
     )
+    parser.add_argument("--band-g", help="Padrão regex para banda G")
+    parser.add_argument("--band-r", help="Padrão regex para banda R")
+    parser.add_argument("--band-i", help="Padrão regex para banda I")
+
     parser.add_argument(
         "--dry-run", action="store_true", help="Apenas simula, não submete jobs"
     )
 
     args = parser.parse_args()
 
+    """
     # Lê configuração
     with open(args.config_file, "r") as f:
         config = safe_load(f)
 
     # Encontra arquivos particionados
-    partition_files = find_partitioned_files(args.input_pattern)
+    # partition_files = find_partitioned_files(args.input_pattern)
+    partition_files = find_fits_images(args.input_pattern)
+
 
     if not partition_files:
         print("Nenhum arquivo encontrado com o padrão especificado!")
@@ -407,6 +480,42 @@ def main():
     if args.max_partitions:
         partition_files = partition_files[: args.max_partitions]
         print(f"Processando apenas as primeiras {len(partition_files)} partições")
+    """
+
+
+    # Lê configuração
+    with open(args.config_file, "r", encoding="utf-8") as f:
+        config = safe_load(f)
+
+    # Padrões de banda personalizados
+    band_patterns = {}
+    if args.band_g:
+        band_patterns["g"] = args.band_g
+    if args.band_r:
+        band_patterns["r"] = args.band_r
+    if args.band_i:
+        band_patterns["i"] = args.band_i
+
+    # Encontra imagens organizadas por banda
+    images_by_band = find_fits_images(
+        args.images_pattern, band_patterns if band_patterns else None
+    )
+
+    # Verifica se encontrou imagens
+    total_images = sum(len(images) for images in images_by_band.values())
+    if total_images == 0:
+        print("Nenhuma imagem FITS encontrada!")
+        return 1
+
+    # Limita número de imagens se especificado
+    if args.max_images:
+        for band in images_by_band:
+            if len(images_by_band[band]) > args.max_images:
+                images_by_band[band] = images_by_band[band][: args.max_images]
+                print(
+                    f"Banda {band}: processando apenas as primeiras {args.max_images} imagens"
+                )
+
 
     # Configurações
     cwd = Path(config.get("cwd", "."))
@@ -417,7 +526,6 @@ def main():
     hips_config = config["hipsgen"]
     hips_runs = hips_config["runs"]
 
-    print(f"\n=== Processamento hierárquico para {len(partition_files)} partições ===")
 
     # Para cada cor
     colors = ["red", "green", "blue"]
@@ -425,26 +533,40 @@ def main():
     all_concat_jobs = {}  # {color: [job_ids]}
     final_band_outputs = {}  # {color: path}
 
+    # Mapeamento de bandas para cores
+    band_to_color = {"g": "blue", "r": "green", "i": "red"}
+
+    print("\n=== Processando imagens por banda ===")
+
+
     # Fase 1: Executa HipsGen para cada partição
-    for color in colors:
+    for band, color in band_to_color.items():
         print(f"\n--- Fase 1: Processando partições da cor {color} ---")
+
+        
+        partition_jobs = []
+        partition_outputs = []
+
+        images = images_by_band[band]
+
+        if not images:
+            print(f"\nBanda {band} ({color}): Nenhuma imagem encontrada")
+            continue
 
         color_config = hips_runs[color].copy()
         color_config.update(hips_config)
 
-        partition_jobs = []
-        partition_outputs = []
 
-        # Job por partição
-        for partition_file in partition_files:
-            region_id = extract_region_id_from_filename(partition_file, args.id_pattern)
+        # Job por image + cor
+        for partition_file in images:
+            region_id = extract_region_id_from_filename(partition_file, color, args.id_pattern)
 
             config_file = create_partition_config(
                 color_config, partition_file, region_id, cwd
             )
 
             # Registra output desta partição
-            partition_output = str((cwd / f"partition_{region_id}").absolute())
+            partition_output = str((cwd / f"{region_id}").absolute())
             partition_outputs.append(partition_output)
 
             print(f"  Partição {region_id}: config={config_file.name}")
@@ -456,15 +578,23 @@ def main():
                 partition_jobs.append(job_id)
                 print(f"    Job submetido: {job_id}")
             else:
+                partition_jobs.append(region_id)
                 print(f"    [DRY RUN] Submeteria job para {region_id}")
                 print(f"    [DRY RUN] color.sbatch {config_file} {cwd}")
 
         all_partition_jobs[color] = partition_jobs
 
+
+        print('jobs: ', partition_jobs)
+        print('outputs: ', partition_outputs)
+
+        exit(0)
+
         # Fase 2: Concatenação hierárquica para esta cor
         if partition_outputs:
             final_output, concat_jobs = execute_hierarchical_concatenation(
                 partition_outputs,
+                partition_jobs,
                 color_config,
                 color,
                 cwd,
@@ -501,9 +631,6 @@ def main():
             print(f"  [DRY RUN] RGB final com dependência: {dependency}")
             print(f"  [DRY RUN] rgb.sbatch {rgb_config_file} {cwd}")
 
-    print(
-        f"\n✓ Processamento hierárquico configurado para {len(partition_files)} partições!"
-    )
     print(
         f"  - {sum(len(jobs) for jobs in all_partition_jobs.values())} jobs de partição"
     )

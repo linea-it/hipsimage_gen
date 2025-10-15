@@ -38,7 +38,7 @@ def find_partitioned_files(input_pattern: str) -> List[Path]:
     return file_paths
 
 
-def extract_region_id_from_filename(file_path: Path, id_pattern: str = "auto") -> str:
+def extract_region_id_from_filename(file_path: Path, color: str, id_pattern: str = "auto") -> str:
     """
     Extrai ID da região do nome do arquivo
     
@@ -69,11 +69,12 @@ def extract_region_id_from_filename(file_path: Path, id_pattern: str = "auto") -
     
     elif id_pattern == "auto":
         # Usa o nome do arquivo (sem extensão) como ID
-        return file_path.stem.replace(".", "_").replace("-", "_")
+        return f'{color}.{file_path.stem.replace(".", "_").replace("-", "_").replace(",", "_")}'
+
     
     else:
         # Pattern customizado - por enquanto igual ao auto
-        return file_path.stem.replace(".", "_").replace("-", "_")
+        return f'{color}.{file_path.stem.replace(".", "_").replace("-", "_").replace(",", "_")}'
     
     # Fallback: usa o nome completo
     return str(file_path.name).replace(".", "_").replace("-", "_")
@@ -171,7 +172,7 @@ def create_config_for_partition(base_config: Dict, file_path: Path, region_id: s
         for key, value in base_config.items():
             if key == 'input_dir':
                 # Input é o diretório que contém este arquivo específico
-                input_path = file_path.parent.absolute()
+                input_path = file_path.absolute()
                 f.write(f'in="{input_path}"\n')
             elif key == 'output_dir':
                 # Output específico para esta partição
@@ -299,7 +300,7 @@ def main():
         
         # Job por partição
         for partition_file in partition_files:
-            region_id = extract_region_id_from_filename(partition_file, args.id_pattern)
+            region_id = extract_region_id_from_filename(partition_file, color, args.id_pattern)
             
             # Se solicitado, extrai limites específicos desta partição
             bounds = None
@@ -328,6 +329,7 @@ def main():
                 print(f"    Job submetido: {job_id}")
             else:
                 print(f"    [DRY RUN] Submeteria job para {region_id}")
+                print(f"    [DRY RUN] {cwd} {config_file}")
         
         all_jobs[color] = partition_jobs
     
@@ -359,6 +361,7 @@ def main():
             print(f"  Consolidação submetida: {job_id}")
         else:
             print(f"  [DRY RUN] Consolidaria com dependência: {dependency}")
+            print(f"  [DRY RUN] {cwd} {consolidate_config}")
         
         final_outputs[f'in{color.capitalize()}'] = str(Path(cwd, final_output).absolute())
     
@@ -390,6 +393,7 @@ def main():
             print(f"  RGB final submetido: {final_job_id}")
         else:
             print(f"  [DRY RUN] RGB final com dependência: {dependency}")
+            print(f"  [DRY RUN] {cwd} {rgb_config_path}")
     
     print(f"\n✓ Paralelização configurada para {len(partition_files)} partições!")
     return 0

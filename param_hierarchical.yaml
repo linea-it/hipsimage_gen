@@ -1,0 +1,37 @@
+aladin_cmd: Aladin.jar  # Caminho para Aladin.jar
+cwd: /tmp/hips_hierarchical  # Diretório de trabalho
+max_mem: 8  # Memória máxima em GB
+
+hipsgen:
+  creator_did: CDS/P/LSST/HIERARCHICAL
+  maxthread: 10
+  hips_creator: LIneA
+  obs_title: 'LSST Hierarchical Processing'
+  
+  runs:
+    blue:
+      input_dir: input_g  # Será sobrescrito pelo script
+      output_dir: output_g_final
+      pixelcut: "-1.2 400 asinh"
+      mode: mean
+      cache: cache_g
+      
+    red:
+      input_dir: input_i  # Será sobrescrito pelo script
+      output_dir: output_i_final
+      pixelcut: "-1 400 asinh"
+      mode: mean
+      cache: cache_i
+      
+    green:
+      input_dir: input_r  # Será sobrescrito pelo script
+      output_dir: output_r_final
+      pixelcut: "-1.2 400 asinh"
+      mode: mean
+      cache: cache_r
+      
+    rgb:
+      output_dir: hips_rgb_final
+      luptonM: "0.02/0.02/0.02"
+      luptonS: "0.005/0.005/0.007"
+      luptonQ: "30/30/30"

@@ -1,20 +1,5 @@
 #!/usr/bin/env python3
-"""
-Script para paralelização do HipsGen com concatenação hierárquica.
-
-FLUXO DE PROCESSAMENTO:
-1. Encontra arquivos particionados
-2. Para cada cor (red, green, blue):
-   - Executa HipsGen para cada partição em paralelo
-   - Concatena hierarquicamente em pares até sobrar uma imagem
-3. Consolida as 3 bandas finais em RGB
-
-EXEMPLO COM 7 PARTIÇÕES:
-  Nível 0: [P1] [P2] [P3] [P4] [P5] [P6] [P7]
-  Nível 1: [P1+P2] [P3+P4] [P5+P6] [P7] ← P7 passa direto
-  Nível 2: [P1234] [P567]
-  Nível 3: [P1234567] ← Resultado final por banda
-"""
+""" """
 
 import argparse
 import re
@@ -26,10 +11,11 @@ from typing import Dict, List, Tuple
 from yaml import safe_load
 
 from utils import (
-    create_config_file,
+    prepare_sbatch_cmd,
+    create_concat_config,
     group_into_pairs,
     submit_slurm_job,
-    create_config_by_band,
+    create_config_file,
 )
 
 
@@ -40,16 +26,14 @@ class HipsHierarchicalConcatError(Exception):
 class HipsHierarchicalConcat:
     """Class to handle HipsGen creation from config file"""
 
-    def __init__(self, config: Dict, jobs: Dict) -> None:
+    def __init__(self, config: Dict) -> None:
 
         with open(config, "r", encoding="utf-8") as f:
             config = safe_load(f)
 
-        self.config = create_config_by_band(config)
+        self.config = create_concat_config(config)
         self.dryrun = config.get("dryrun", False)
         config.pop("inputs", None)
-
-        self.jobs_submited = jobs
 
         self.alladin_cmd = config.get("aladin_cmd", "Aladin.jar")
         self.max_mem = str(config.get("max_mem", "2"))
@@ -85,16 +69,46 @@ class HipsHierarchicalConcat:
                     print(f"Pass through to next level: {pair[0]}")
                     next_level_jobs.append(pair[0])
                 else:
-                    print(f"Pair 1: {pair[0]}")
-                    print(f"Pair 2: {pair[1]}")
-                    # job_id = submit_slurm_job(
-                    #     "concat.sbatch",
+                    config_concat = self.config.copy()
+                    config_concat["in"] = pair[0]["output_dir"]
+                    config_concat["out"] = pair[1]["output_dir"]
 
-                    # )
-                    output_job = pair[1]
-                    output_job["id"] = f"concat_{level}.{idx}"
-                    next_level_jobs.append(output_job)
+                    config_file = create_config_file(
+                        config_concat,
+                        Path(pair[1]["output_dir"]),
+                        add_output_path=False,
+                    )
 
+                    dependencies = [
+                        pair[0]["id"],
+                        pair[1]["id"],
+                    ]
+                    cmd = prepare_sbatch_cmd(
+                        "concat.sbatch",
+                        config_file=str(config_file),
+                        aladin_jar=self.alladin_cmd,
+                        max_mem=self.max_mem,
+                        dependency=":".join(map(str, dependencies)),
+                    )
+
+                    print(f"Submitting concat job with command: {' '.join(cmd)}")
+
+                    if self.dryrun:
+                        job_id = f"concat_{level}.{idx}"
+                        print(f"DRY RUN: would submit concat job {job_id}")
+                    else:
+                        job_id = submit_slurm_job(
+                            cmd,
+                            work_dir=str(self.output_dir.parent.absolute()),
+                        )
+
+                    job = {
+                        "id": job_id,
+                        "output_dir": pair[1]["output_dir"],
+                        "slurm_job_dependencies": dependencies,
+                    }
+
+                    next_level_jobs.append(job)
             current_level_outputs = next_level_jobs
             level += 1
 
@@ -121,20 +135,15 @@ def main():
     jobs = hipsimage.submit_jobs()
     print(f"Total jobs submitted: {len(jobs)}")
     print(f"Jobs: {jobs}")
-    hipsconcat = HipsHierarchicalConcat(args.config, jobs)
 
+    hipsconcat = HipsHierarchicalConcat(args.config)
     print("\nStarting HipsGen processing...")
     print(
         f"Using Aladin command: java -Xmx{hipsconcat.max_mem}g -jar {hipsconcat.alladin_cmd}"
     )
     print(f"Working directory: {hipsimage.output_dir}")
-
-    print("jobs by imgs:")
-    for band, value in hipsconcat.jobs_submited.items():
-        print(f"--> Band: {band}")
-        main_color_job = hipsconcat.recursive_hierarchical_concat(value)
-        print(f"Final job for band {band}: {main_color_job}")
-        print("-------\n")
+    main_job = hipsconcat.recursive_hierarchical_concat(jobs)
+    print(f"Final job: {main_job}")
 
 
 if __name__ == "__main__":

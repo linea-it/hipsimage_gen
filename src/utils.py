@@ -2,7 +2,42 @@
 
 from pathlib import Path
 import subprocess
-from typing import Dict, List
+from typing import Dict, List, Optional
+
+
+def prepare_sbatch_cmd(
+    sbatch_script: str,
+    config_file: Path,
+    aladin_jar: str,
+    max_mem: str,
+    dependency: Optional[int] = None,
+):
+    """Prepare sbatch command job submission
+    Args:
+        sbatch_script: SLURM sbatch script to use
+        config_file: Path to the configuration file
+        aladin_jar: Path to the Aladin jar file
+        max_mem: Maximum memory for the job
+        dependency: Optional job ID that this job depends on
+    Returns:
+        List of command line arguments for sbatch
+    """
+
+    cmd = [
+        "sbatch",
+    ]
+    if dependency:
+        cmd.append(f"--dependency=afterok:{dependency}")
+
+    cmd.extend(
+        [
+            sbatch_script,
+            max_mem,
+            aladin_jar,
+            str(config_file),
+        ]
+    )
+    return cmd
 
 
 def extract_unique_id_from_filename(file_path: Path, number: int = None) -> str:
@@ -51,6 +86,18 @@ def create_rgb_config(config: Dict) -> Dict:
     return rgb_config
 
 
+def create_concat_config(config: Dict) -> Dict:
+    """Create config dict for concatenation"""
+    hips_config = config["hipsgen"]
+    hips_runs = hips_config["runs"]
+
+    concat_config = hips_runs["concat"].copy()
+    concat_config.update(hips_config)
+    concat_config.pop("runs", None)  # Remove 'runs' key
+
+    return concat_config
+
+
 def create_config_file(
     base_config: Dict,
     output_dir: Path,
@@ -67,7 +114,10 @@ def create_config_file(
         Path to the created config file
     """
 
-    config_path = output_dir / "config"
+    if add_output_path:
+        config_path = output_dir / "config"
+    else:
+        config_path = output_dir / "config.concat"
 
     with open(config_path, "w", encoding="utf-8") as f:
         for key, value in base_config.items():
@@ -78,7 +128,7 @@ def create_config_file(
 
         # Add output directory
         if add_output_path:
-            f.write(f'output="{(output_dir).absolute()}"\n')
+            f.write(f'out="{(output_dir).absolute()}"\n')
 
     return config_path
 

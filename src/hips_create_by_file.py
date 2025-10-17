@@ -10,6 +10,7 @@ from typing import Dict, List, Optional
 from yaml import safe_load
 
 from utils import (
+    prepare_sbatch_cmd,
     create_config_file,
     create_rgb_config,
     submit_slurm_job,
@@ -60,20 +61,21 @@ class HipsCreateByFile:
             raise HipsCreateByFileError("No fits images found!")
 
         # Limit number of images if specified
-        # if inputs.get("max_images", None):
-        #     for band, images in self.images_by_band.items():
-        #         if images and len(images) > inputs["max_images"]:
-        #             images = images[: inputs["max_images"]]
-        #             print(
-        #                 f"Band {band}: processing only the first {inputs['max_images']} images"
-        #             )
+        if inputs.get("max_images", None):
+            img_names = list(self.images.keys())
+            print(f"Total images found: {len(img_names)}")
+            print(f"{img_names}")
+            max_imgs = img_names[: inputs["max_images"]]
+            for images in img_names:
+                if not images in max_imgs:
+                    self.images.pop(images)
+            print(f"Processing only the first {inputs['max_images']} images")
 
-        self.__jobs_submitted = {"g": [], "r": [], "i": []}
+        self.__jobs_submitted = []
 
-    def jobs_submitted(self, band: str = None) -> Dict[str, List[Dict]]:
-        """Return the submitted jobs, optionally filtered by band"""
-        if band:
-            return {band: self.__jobs_submitted.get(band, [])}
+    @property
+    def jobs_submitted(self) -> Dict[str, List[Dict]]:
+        """Return the submitted jobs"""
         return self.__jobs_submitted
 
     def find_fits_images(
@@ -139,45 +141,8 @@ class HipsCreateByFile:
 
         return images
 
-    def prepare_sbatch_cmd(
-        self,
-        sbatch_script: str,
-        config_file: Path,
-        aladin_jar: str,
-        max_mem: str,
-        dependency: Optional[int] = None,
-    ):
-        """Prepare sbatch command job submission
-        Args:
-            sbatch_script: SLURM sbatch script to use
-            config_file: Path to the configuration file
-            aladin_jar: Path to the Aladin jar file
-            max_mem: Maximum memory for the job
-            dependency: Optional job ID that this job depends on
-        Returns:
-            List of command line arguments for sbatch
-        """
-
-        cmd = [
-            "sbatch",
-        ]
-        if dependency:
-            cmd.append(f"--dependency=afterok:{dependency}")
-
-        cmd.extend(
-            [
-                sbatch_script,
-                max_mem,
-                aladin_jar,
-                str(config_file),
-            ]
-        )
-        return cmd
-
     def submit_jobs(self):
         """Submit jobs to SLURM for each band and image"""
-
-        img_rgb_jobs = []
 
         for image_id, images in self.images.items():
             if not images:
@@ -197,10 +162,10 @@ class HipsCreateByFile:
             job_consolidate = self.submit_consolidate_rgb(
                 image_id, img_output_dir, jobs
             )
-            img_rgb_jobs.append(job_consolidate)
             print(f"Submitted RGB consolidate job: {job_consolidate}")
 
-        return img_rgb_jobs
+            self.__jobs_submitted.append(job_consolidate)
+        return self.jobs_submitted
 
     def submit_consolidate_rgb(
         self, image_id: str, img_output_dir: str, jobs: Dict[str, Dict]
@@ -230,14 +195,14 @@ class HipsCreateByFile:
         rgb_config = self.update_rgb_config_input_paths(rgb_config, jobs)
 
         config_file = create_config_file(rgb_config, rgb_output_dir)
-        cmd = self.prepare_sbatch_cmd(
+        cmd = prepare_sbatch_cmd(
             "rgb.sbatch",
-            config_file=config_file,
+            config_file=str(config_file),
             aladin_jar=self.alladin_cmd,
             max_mem=self.max_mem,
             dependency=":".join(map(str, dependency_ids)),
         )
-        cmd.append(rgb_output_dir)
+        cmd.append(str(rgb_output_dir))
 
         print(f"Submitting RGB consolidate job with command: {' '.join(cmd)}")
 
@@ -251,7 +216,11 @@ class HipsCreateByFile:
             )
             print(f"Submitted RGB consolidate job {job_id}")
 
-        return {"id": job_id, "output_dir": str(rgb_output_dir)}
+        return {
+            "id": job_id,
+            "output_dir": str(rgb_output_dir),
+            "slurm_job_dependencies": dependency_ids,
+        }
 
     def update_rgb_config_input_paths(
         self, rgb_config: Dict, jobs: Dict[str, Dict]
@@ -310,7 +279,7 @@ class HipsCreateByFile:
             config["input"] = images[band]
             config_file = create_config_file(config, band_output_dir)
 
-            cmd = self.prepare_sbatch_cmd(
+            cmd = prepare_sbatch_cmd(
                 "color.sbatch",
                 config_file=config_file,
                 aladin_jar=self.alladin_cmd,
@@ -358,7 +327,12 @@ def main():
     )
     print(f"Working directory: {hipsimage.output_dir}")
 
-    hipsimage.submit_jobs()
+    print("/n/nSubmitting jobs...")
+    jobs = hipsimage.submit_jobs()
+
+    print(f"Total jobs submitted: {len(jobs)}")
+    for job in jobs:
+        print(f"  Job: {job}")
 
 
 if __name__ == "__main__":

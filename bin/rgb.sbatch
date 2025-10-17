@@ -2,7 +2,7 @@
 #SBATCH -J createRGB
 #SBATCH -p cpu
 #SBATCH -N 1
-#SBATCH --exclusive
+#SBATCH --cpus-per-task=5
 #SBATCH --propagate=NPROC
 
 mkdir -p $4

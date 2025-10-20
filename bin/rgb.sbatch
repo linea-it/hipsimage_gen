@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -J createRGB
+#SBATCH -J HipsRGB
 #SBATCH -p cpu
 #SBATCH -N 1
 #SBATCH --cpus-per-task=5

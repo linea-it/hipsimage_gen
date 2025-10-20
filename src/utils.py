@@ -98,6 +98,21 @@ def create_concat_config(config: Dict) -> Dict:
     return concat_config
 
 
+def create_index_config(config: Dict) -> Dict:
+    """Create config dict for concatenation"""
+    hips_config = config["hipsgen"]
+    hips_runs = hips_config["runs"]
+
+    index_config = hips_runs.get("index", {})
+    if index_config:
+        index_config = index_config.copy()
+
+    index_config.update(hips_config)
+    index_config.pop("runs", None)  # Remove 'runs' key
+
+    return index_config
+
+
 def create_config_file(
     base_config: Dict,
     output_dir: Path,

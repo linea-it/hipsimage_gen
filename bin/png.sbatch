@@ -6,5 +6,4 @@
 #SBATCH --cpus-per-task=5
 #SBATCH --propagate=NPROC
 
-java -Xmx$1g -jar $2 -hipsgen -nocolor -param=$3 TILES PNG
-
+java -Xmx$1g -jar $2 -hipsgen -nocolor -param=$3 INDEX TILES PNG

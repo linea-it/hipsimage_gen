@@ -27,6 +27,6 @@ hipsgen:
       pixelcut: "-1.2 400 asinh"
       mode: mean
     rgb:
-      luptonM: "0.02/0.02/0.02"
-      luptonS: "0.005/0.005/0.007"
-      luptonQ: "30/30/30"
+      luptonM: "0.03/0.03/0.03" # Brightness
+      luptonS: "0.4/0.4/0.4" # Saturation
+      luptonQ: "40000/40000/40000" # Contrast

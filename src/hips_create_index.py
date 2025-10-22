@@ -32,14 +32,13 @@ class HipsCreateIndex:
         self.max_mem = str(config.get("max_mem", "2"))
         self.output_dir = Path(config.get("output_dir", "."), "index")
         self.output_dir.mkdir(exist_ok=True)
-        self.norders = range(13)
 
-        self.__jobs_submitted = []
+        self.__job = None
 
     @property
-    def jobs_submitted(self) -> Dict[str, List[Dict]]:
-        """Return the submitted jobs"""
-        return self.__jobs_submitted
+    def job(self) -> Dict[str, str]:
+        """Return the submitted job"""
+        return self.__job
 
     def create_config_file(self, config, config_output_path: Path):
         """Create config"""
@@ -53,19 +52,8 @@ class HipsCreateIndex:
 
         return config_output_path
 
-    def submit_jobs(self):
-        """Submit jobs to SLURM for each norder"""
-
-        for norder in self.norders:
-            job_id = self.submit_by_norder(norder)
-            self.__jobs_submitted.append(job_id)
-        return self.jobs_submitted
-
-    def submit_by_norder(self, norder: int) -> Dict:
-        """Submit a SLURM job to create an index for a specific norder
-
-        Args:
-            norder: The norder level for which to create the index
+    def submit(self) -> Dict:
+        """Submit a SLURM job to create an index
 
         Returns:
             Job info dict for the index creation job
@@ -73,10 +61,9 @@ class HipsCreateIndex:
         """
 
         config = self.config.copy()
-        config["order"] = str(norder)
         config["out"] = str(self.output_dir)
 
-        config_output_path = str(self.output_dir / f"Norder{norder}")
+        config_output_path = str(self.output_dir / "config")
 
         config_file = self.create_config_file(config, config_output_path)
         cmd = prepare_sbatch_cmd(
@@ -86,19 +73,20 @@ class HipsCreateIndex:
             max_mem=self.max_mem,
         )
 
-        print(f"Submitting index job for norder {norder} with command: {' '.join(cmd)}")
+        print(f"Submitting index job with command: {' '.join(cmd)}")
 
         if self.dryrun:
-            job_id = f"index.Norder{norder}"
-            print(f"DRY RUN: would submit index job for norder {norder}")
+            job_id = "index.01"
+            print("DRY RUN: would submit index job")
         else:
             job_id = submit_slurm_job(
                 cmd,
                 work_dir=str(self.output_dir.absolute()),
             )
-            print(f"Submitted index job {job_id} for norder {norder}")
+            print(f"Submitted index job {job_id}")
 
-        return job_id
+        self.__job = {"id": job_id, "output_dir": config_output_path}
+        return self.job
 
 
 def main():
@@ -122,12 +110,9 @@ def main():
     )
     print(f"Working directory: {hipsimage.output_dir}")
 
-    print("/n/nSubmitting jobs...")
-    jobs = hipsimage.submit_jobs()
-
-    print(f"Total jobs submitted: {len(jobs)}")
-    for job in jobs:
-        print(f"  Job: {job}")
+    print("/n/nSubmitting job...")
+    job = hipsimage.submit()
+    print(f"  Job: {job}")
 
 
 if __name__ == "__main__":

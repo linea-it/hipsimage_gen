@@ -25,7 +25,7 @@ class HipsParallelByRegionsError(Exception):
 class HipsParallelByRegions:
     """Class to handle HipsGen creation from config file"""
 
-    def __init__(self, config: Dict, index_path: str) -> None:
+    def __init__(self, config: Dict, job: Dict[str, str]) -> None:
 
         with open(config, "r", encoding="utf-8") as f:
             config = safe_load(f)
@@ -38,7 +38,13 @@ class HipsParallelByRegions:
         self.output_dir = Path(config.get("output_dir", "."), "bands")
         self.output_dir.mkdir(exist_ok=True)
 
+        self.job_dependency = job.get("id", None)
+        index_path = job["output_dir"]
         self.regions = self.__get_regions(index_path)
+
+        print("REGIONS:")
+        print(self.regions)
+
         self.mapping_colors = {
             "i": "red",
             "g": "blue",
@@ -59,10 +65,28 @@ class HipsParallelByRegions:
         for d in ndirs:
             ndir = Path(d)
             norder = int(ndir.parent.name.replace("Norder", ""))
-            _dir = int(ndir.name.replace("Dir", ""))
-            regions.append(f"{norder}/{_dir}")
+            npixs = self.__get_min_max_by_dir(ndir)
+
+            if not npixs:
+                raise HipsParallelByRegionsError("Npixs not found!")
+
+            if len(npixs) == 1:
+                regions.append(f"{norder}/{npixs[0]}")
+            else:
+                regions.append(f"{norder}/{npixs[0]}-{npixs[1]}")
 
         return regions
+
+    def __get_min_max_by_dir(self, dir_path: Path):
+        """ """
+
+        print("dir path:", dir_path)
+
+        npixs = sorted(glob(str(dir_path / "Npix*")))
+        print(npixs)
+        _min = int(Path(npixs[0]).name.replace("Npix", ""))
+        _max = int(Path(npixs[-1]).name.replace("Npix", ""))
+        return list(set([_min, _max]))
 
     def submit_by_region(self, region: str) -> None:
         """Submit jobs to SLURM for each region
@@ -245,9 +269,12 @@ def main():
     # hipsindex = HipsCreateIndex(args.config)
     # jobs = hipsindex.submit_jobs()
 
-    output_index = "/home/singulani/projects/hipsimage_gen/output/index"
+    job = {
+        "id": "index.00",
+        "output_dir": "/mnt/EXT4/hips/dc2/test01/index/",
+    }
 
-    hipsimage = HipsParallelByRegions(args.config, output_index)
+    hipsimage = HipsParallelByRegions(args.config, job)
 
     print("\nStarting HipsGen processing...")
     print(
@@ -255,7 +282,7 @@ def main():
     )
     print(f"Working directory: {hipsimage.output_dir}")
 
-    print("/n/nSubmitting jobs...")
+    print("\n\nSubmitting jobs...")
     jobs = hipsimage.submit_jobs()
 
     print(f"Total jobs submitted: {len(jobs)}")

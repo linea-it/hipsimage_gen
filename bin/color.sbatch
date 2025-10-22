@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -J createHIPS
+#SBATCH -J hipsRegion
 #SBATCH -p cpu
 #SBATCH -N 1
 #SBATCH -n 1

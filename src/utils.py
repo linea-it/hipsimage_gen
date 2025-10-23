@@ -115,24 +115,18 @@ def create_index_config(config: Dict) -> Dict:
 
 def create_config_file(
     base_config: Dict,
-    output_dir: Path,
-    add_output_path: bool = True,
+    config_path: str,
 ) -> Path:
     """
     Create a config file for a specific image and band
 
     Args:
         base_config: Base configuration dictionary
-        output_dir: Directory to save the config file
-        add_output_path: Whether to add output path to config
+        config_path: Path to the output directory
+
     Returns:
         Path to the created config file
     """
-
-    if add_output_path:
-        config_path = output_dir / "config"
-    else:
-        config_path = output_dir / "config.concat"
 
     with open(config_path, "w", encoding="utf-8") as f:
         for key, value in base_config.items():
@@ -140,10 +134,6 @@ def create_config_file(
                 continue
 
             f.write(f'{key}="{value}"\n')
-
-        # Add output directory
-        if add_output_path:
-            f.write(f'out="{(output_dir).absolute()}"\n')
 
     return config_path
 

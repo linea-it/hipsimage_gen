@@ -11,6 +11,7 @@ from utils import (
     prepare_sbatch_cmd,
     submit_slurm_job,
     create_index_config,
+    create_config_file,
 )
 
 
@@ -40,18 +41,6 @@ class HipsCreateIndex:
         """Return the submitted job"""
         return self.__job
 
-    def create_config_file(self, config, config_output_path: Path):
-        """Create config"""
-
-        with open(config_output_path, "w", encoding="utf-8") as f:
-            for key, value in config.items():
-                if key == "runs":
-                    continue
-
-                f.write(f'{key}="{value}"\n')
-
-        return config_output_path
-
     def submit(self) -> Dict:
         """Submit a SLURM job to create an index
 
@@ -65,7 +54,7 @@ class HipsCreateIndex:
 
         config_output_path = str(self.output_dir / "config")
 
-        config_file = self.create_config_file(config, config_output_path)
+        config_file = create_config_file(config, config_output_path)
         cmd = prepare_sbatch_cmd(
             "index.sbatch",
             config_file=str(config_file),
@@ -85,7 +74,7 @@ class HipsCreateIndex:
             )
             print(f"Submitted index job {job_id}")
 
-        self.__job = {"id": job_id, "output_dir": config_output_path}
+        self.__job = {"id": job_id, "output_dir": str(self.output_dir.absolute())}
         return self.job
 
 

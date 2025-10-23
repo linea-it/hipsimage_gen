@@ -39,11 +39,12 @@ class HipsParallelByRegions:
         self.output_dir.mkdir(exist_ok=True)
 
         self.job_dependency = job.get("id", None)
-        index_path = job["output_dir"]
-        self.regions = self.__get_regions(index_path)
+        self.regions, self.npixs_count = self.__get_regions(job["output_dir"])
 
         print("REGIONS:")
         print(self.regions)
+        print("NPIXS COUNT:")
+        print(self.npixs_count)
 
         self.mapping_colors = {
             "i": "red",
@@ -61,6 +62,7 @@ class HipsParallelByRegions:
         """ """
         ndirs = glob(f"{index_path}/HpxFinder/Norder*/Dir*")
         regions = []
+        npixs_count = []
 
         for d in ndirs:
             ndir = Path(d)
@@ -74,21 +76,21 @@ class HipsParallelByRegions:
                 regions.append(f"{norder}/{npixs[0]}")
             else:
                 regions.append(f"{norder}/{npixs[0]}-{npixs[1]}")
+            npixs_count.append(npixs[2])
 
-        return regions
+        return regions, npixs_count
 
     def __get_min_max_by_dir(self, dir_path: Path):
-        """ """
-
-        print("dir path:", dir_path)
+        """Get min and max Npixs by directory"""
 
         npixs = sorted(glob(str(dir_path / "Npix*")))
-        print(npixs)
+        npix_count = len(npixs)
+
         _min = int(Path(npixs[0]).name.replace("Npix", ""))
         _max = int(Path(npixs[-1]).name.replace("Npix", ""))
-        return list(set([_min, _max]))
+        return sorted(list(set([_min, _max]))).append(npix_count)
 
-    def submit_by_region(self, region: str) -> None:
+    def submit_by_region(self, region: str, npix_count: int) -> None:
         """Submit jobs to SLURM for each region
 
         Args:
@@ -100,7 +102,7 @@ class HipsParallelByRegions:
 
         region_id = region.replace("/", ".")
 
-        region_output_dir = self.output_dir / region_id
+        region_output_dir = self.output_dir / f"{region_id}.{str(npix_count)}"
         region_output_dir.mkdir(exist_ok=True)
 
         jobs = {}
@@ -116,7 +118,9 @@ class HipsParallelByRegions:
             band_output_dir = region_output_dir / band
             band_output_dir.mkdir(exist_ok=True)
 
-            config_file = create_config_file(config, band_output_dir)
+            config["out"] = str(band_output_dir)
+
+            config_file = create_config_file(config, str(band_output_dir / "config"))
 
             cmd = prepare_sbatch_cmd(
                 "png.sbatch",
@@ -147,8 +151,9 @@ class HipsParallelByRegions:
     def submit_jobs(self):
         """Submit jobs to SLURM for each band and image"""
 
-        for region in self.regions:
-            job = self.submit_by_region(region)
+        for idx, region in enumerate(self.regions):
+            npix_count = self.npixs_count[idx]
+            job = self.submit_by_region(region, npix_count)
             region_id = job["region_id"]
             jobs = job["jobs"]
             region_output_dir = job["output_dir"]
@@ -193,8 +198,9 @@ class HipsParallelByRegions:
 
         rgb_config = self.rgb_config.copy()
         rgb_config = self.update_rgb_config_input_paths(rgb_config, jobs)
+        rgb_config["out"] = str(rgb_output_dir)
 
-        config_file = create_config_file(rgb_config, rgb_output_dir)
+        config_file = create_config_file(rgb_config, str(rgb_output_dir / "config"))
         cmd = prepare_sbatch_cmd(
             "rgb.sbatch",
             config_file=str(config_file),
@@ -253,7 +259,7 @@ class HipsParallelByRegions:
 
 def main():
     """Main function to parse arguments and run HipsGen processing"""
-    # from hips_create_index import HipsCreateIndex
+    from hips_create_index import HipsCreateIndex
 
     parser = argparse.ArgumentParser(
         description="Create HipsGen images from config file"
@@ -266,13 +272,8 @@ def main():
         help="Path to the YAML configuration file",
     )
     args = parser.parse_args()
-    # hipsindex = HipsCreateIndex(args.config)
-    # jobs = hipsindex.submit_jobs()
-
-    job = {
-        "id": "index.00",
-        "output_dir": "/mnt/EXT4/hips/dc2/test01/index/",
-    }
+    hipsindex = HipsCreateIndex(args.config)
+    job = hipsindex.submit()
 
     hipsimage = HipsParallelByRegions(args.config, job)
 

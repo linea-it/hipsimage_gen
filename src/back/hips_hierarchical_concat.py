@@ -37,7 +37,7 @@ class HipsHierarchicalConcat:
 
         self.alladin_cmd = config.get("aladin_cmd", "Aladin.jar")
         self.max_mem = str(config.get("max_mem", "2"))
-        self.output_dir = Path(config.get("output_dir", "."), "images")
+        self.output_dir = Path(config.get("output_dir", "."), "main")
         self.output_dir.mkdir(exist_ok=True)
 
     def recursive_hierarchical_concat(

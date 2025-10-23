@@ -11,6 +11,7 @@ def prepare_sbatch_cmd(
     aladin_jar: str,
     max_mem: str,
     dependency: Optional[int] = None,
+    wait: bool = False,
 ):
     """Prepare sbatch command job submission
     Args:
@@ -19,6 +20,7 @@ def prepare_sbatch_cmd(
         aladin_jar: Path to the Aladin jar file
         max_mem: Maximum memory for the job
         dependency: Optional job ID that this job depends on
+        wait: If True, wait for the job to complete before returning (uses --wait)
     Returns:
         List of command line arguments for sbatch
     """
@@ -26,6 +28,10 @@ def prepare_sbatch_cmd(
     cmd = [
         "sbatch",
     ]
+
+    if wait:
+        cmd.append("--wait")
+
     if dependency:
         cmd.append(f"--dependency=afterok:{dependency}")
 

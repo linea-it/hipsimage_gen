@@ -1,11 +1,10 @@
 """Module to create HipsGen by regions from a configuration file."""
 
 import argparse
-import re
 import sys
 from glob import glob
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from yaml import safe_load
 
@@ -25,7 +24,7 @@ class HipsParallelByRegionsError(Exception):
 class HipsParallelByRegions:
     """Class to handle HipsGen creation from config file"""
 
-    def __init__(self, config: Dict, job: Dict[str, str]) -> None:
+    def __init__(self, config: Dict, index_path: str) -> None:
 
         with open(config, "r", encoding="utf-8") as f:
             config = safe_load(f)
@@ -37,20 +36,14 @@ class HipsParallelByRegions:
         self.max_mem = str(config.get("max_mem", "2"))
         self.output_dir = Path(config.get("output_dir", "."), "bands")
         self.output_dir.mkdir(exist_ok=True)
-
-        self.job_dependency = job.get("id", None)
-        self.regions, self.npixs_count = self.__get_regions(job["output_dir"])
-
-        print("REGIONS:")
-        print(self.regions)
-        print("NPIXS COUNT:")
-        print(self.npixs_count)
+        self.regions, self.npixs_count = self.__get_regions(index_path)
 
         self.mapping_colors = {
             "i": "red",
             "g": "blue",
             "r": "green",
         }
+
         self.__jobs_submitted = []
 
     @property
@@ -88,7 +81,9 @@ class HipsParallelByRegions:
 
         _min = int(Path(npixs[0]).name.replace("Npix", ""))
         _max = int(Path(npixs[-1]).name.replace("Npix", ""))
-        return sorted(list(set([_min, _max]))).append(npix_count)
+        npixs = sorted(list(set([_min, _max])))
+        npixs.append(npix_count)
+        return npixs
 
     def submit_by_region(self, region: str, npix_count: int) -> None:
         """Submit jobs to SLURM for each region
@@ -241,13 +236,7 @@ class HipsParallelByRegions:
             Updated RGB configuration dictionary
         """
 
-        mapping_colors = {
-            "r": "inRed",
-            "g": "inBlue",
-            "i": "inGreen",
-        }
-
-        for band, color in mapping_colors.items():
+        for band, color in self.mapping_colors.items():
             job_info = jobs.get(band, None)
             if job_info:
                 rgb_config[color] = job_info.get("output_dir")
@@ -259,6 +248,7 @@ class HipsParallelByRegions:
 
 def main():
     """Main function to parse arguments and run HipsGen processing"""
+
     from hips_create_index import HipsCreateIndex
 
     parser = argparse.ArgumentParser(
@@ -271,11 +261,14 @@ def main():
         required=True,
         help="Path to the YAML configuration file",
     )
+
     args = parser.parse_args()
+
     hipsindex = HipsCreateIndex(args.config)
     job = hipsindex.submit()
+    index_path = job["output_dir"]
 
-    hipsimage = HipsParallelByRegions(args.config, job)
+    hipsimage = HipsParallelByRegions(args.config, index_path)
 
     print("\nStarting HipsGen processing...")
     print(

@@ -3,7 +3,7 @@
 import argparse
 import sys
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict
 
 from yaml import safe_load
 
@@ -60,6 +60,7 @@ class HipsCreateIndex:
             config_file=str(config_file),
             aladin_jar=self.alladin_cmd,
             max_mem=self.max_mem,
+            wait=True,
         )
 
         print(f"Submitting index job with command: {' '.join(cmd)}")

@@ -4,16 +4,14 @@
 import argparse
 import shutil
 import sys
-from glob import glob
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
 from yaml import safe_load
 
 from utils import (
     prepare_sbatch_cmd,
     create_concat_config,
-    group_into_pairs,
     submit_slurm_job,
     create_config_file,
 )
@@ -41,9 +39,11 @@ class HipsConcat:
         self.output_dir.mkdir(exist_ok=True)
 
         self.__jobs = self.__sorted_jobs(jobs)
-        self.__main_job = self.__prepare_main_job(
-            self.__jobs.pop(-1)
-        )  # returns the largest job
+        self.__main_job = self.__jobs.pop(-1)
+
+        # self.__main_job = self.__prepare_main_job(
+        #     self.__jobs.pop(-1)
+        # )  # returns the largest job
 
     @property
     def jobs(self) -> List[Dict]:
@@ -55,7 +55,7 @@ class HipsConcat:
         """Return the main job"""
         return self.__main_job
 
-    def __prepare_main_job(self, job: Dict):
+    def prepare_main_job(self, job: Dict):
         """Prepare main job"""
 
         job_output = Path(job["output_dir"])
@@ -146,69 +146,12 @@ def main():
     )
     args = parser.parse_args()
 
-    # hipsindex = HipsCreateIndex(args.config)
-    # job = hipsindex.submit()
+    hipsindex = HipsCreateIndex(args.config)
+    job = hipsindex.submit()
+    index_path = job["output_dir"]
 
-    # hipsimage = HipsParallelByRegions(args.config, job)
-    # jobs = hipsimage.submit_jobs()
-
-    jobs = [
-        {
-            "id": 22856,
-            "output_dir": "/scratch/users/singulani/hipsimage_gen/outputs/bands/12.141328351-141328383.32/rgb",
-            "npixs": 32,
-        },
-        {
-            "id": 22860,
-            "output_dir": "/scratch/users/singulani/hipsimage_gen/outputs/bands/12.141492224-141492226.2/rgb",
-            "npixs": 2,
-        },
-        {
-            "id": 22864,
-            "output_dir": "/scratch/users/singulani/hipsimage_gen/outputs/bands/12.141360000-141369007.9007/rgb",
-            "npixs": 9007,
-        },
-        {
-            "id": 22868,
-            "output_dir": "/scratch/users/singulani/hipsimage_gen/outputs/bands/12.141386402-141388546.2144/rgb",
-            "npixs": 2144,
-        },
-        {
-            "id": 22872,
-            "output_dir": "/scratch/users/singulani/hipsimage_gen/outputs/bands/12.141348831-141349887.1056/rgb",
-            "npixs": 1056,
-        },
-        {
-            "id": 22876,
-            "output_dir": "/scratch/users/singulani/hipsimage_gen/outputs/bands/12.141447248-141448962.1714/rgb",
-            "npixs": 1714,
-        },
-        {
-            "id": 22880,
-            "output_dir": "/scratch/users/singulani/hipsimage_gen/outputs/bands/12.141400064-141406210.6146/rgb",
-            "npixs": 6146,
-        },
-        {
-            "id": 22884,
-            "output_dir": "/scratch/users/singulani/hipsimage_gen/outputs/bands/12.141350111-141359999.9888/rgb",
-            "npixs": 9888,
-        },
-        {
-            "id": 22888,
-            "output_dir": "/scratch/users/singulani/hipsimage_gen/outputs/bands/12.141370335-141377535.7200/rgb",
-            "npixs": 7200,
-        },
-        {
-            "id": 22892,
-            "output_dir": "/scratch/users/singulani/hipsimage_gen/outputs/bands/12.141393920-141399810.5890/rgb",
-            "npixs": 5890,
-        },
-        {
-            "id": 22896,
-            "output_dir": "/scratch/users/singulani/hipsimage_gen/outputs/bands/12.141410304-141410306.2/rgb",
-            "npixs": 2,
-        },
-    ]
+    hipsimage = HipsParallelByRegions(args.config, index_path)
+    jobs = hipsimage.submit_jobs()
 
     hipsconcat = HipsConcat(args.config, jobs)
     print("\nStarting HipsGen processing...")

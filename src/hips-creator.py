@@ -10,6 +10,7 @@ def main():
     from hips_create_index import HipsCreateIndex
     from hips_parallel_by_regions import HipsParallelByRegions
     from hips_concat import HipsConcat
+    from hips_hierarchical_concat import HipsHierarchicalConcat
 
     parser = argparse.ArgumentParser(
         description="Create HipsGen images from config file"
@@ -21,6 +22,15 @@ def main():
         required=True,
         help="Path to the YAML configuration file",
     )
+
+    parser.add_argument(
+        "-m",
+        "--mode",
+        type=str,
+        default="single",
+        help="Mode to run the script (single or hierarchical)",
+    )
+
     args = parser.parse_args()
 
     hipsindex = HipsCreateIndex(args.config)
@@ -30,15 +40,19 @@ def main():
     hipsimage = HipsParallelByRegions(args.config, index_path)
     jobs = hipsimage.submit_jobs()
 
-    hipsconcat = HipsConcat(args.config, jobs)
     print("\nStarting HipsGen processing...")
     print(
-        f"Using Aladin command: java -Xmx{hipsconcat.max_mem}g -jar {hipsconcat.alladin_cmd}"
+        f"Using Aladin command: java -Xmx{hipsimage.max_mem}g -jar {hipsimage.alladin_cmd}"
     )
 
-    concat_jobs = hipsconcat.make_concat_jobs()
-    print("\n\nSubmitting concat jobs...")
+    if args.mode == "hierarchical":
+        hipsconcat = HipsHierarchicalConcat(args.config, jobs)
+        concat_jobs = hipsconcat.execute_hierarchical_concatenation()
+    else:
+        hipsconcat = HipsConcat(args.config, jobs)
+        concat_jobs = hipsconcat.make_concat_jobs()
 
+    print("\n\nSubmitting concat jobs...")
     for job in concat_jobs:
         print(f"  Job: {job}")
 

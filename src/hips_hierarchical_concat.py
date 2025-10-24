@@ -155,42 +155,12 @@ def main():
     )
     args = parser.parse_args()
 
-    # hipsindex = HipsCreateIndex(args.config)
-    # job = hipsindex.submit()
-    # index_path = job["output_dir"]
+    hipsindex = HipsCreateIndex(args.config)
+    job = hipsindex.submit()
+    index_path = job["output_dir"]
 
-    # hipsimage = HipsParallelByRegions(args.config, index_path)
-    # jobs = hipsimage.submit_jobs()
-
-    jobs = [
-        {
-            "id": "rgb.11.47520001-47521151",
-            "output_dir": "/mnt/EXT4/hips/dc2/test02/bands/11.47520001-47521151.337/rgb",
-            "slurm_job_dependencies": [
-                "g.11.47520001-47521151",
-                "r.11.47520001-47521151",
-                "i.11.47520001-47521151",
-            ],
-        },
-        {
-            "id": "rgb.11.47530496-47537770",
-            "output_dir": "/mnt/EXT4/hips/dc2/test02/bands/11.47530496-47537770.1790/rgb",
-            "slurm_job_dependencies": [
-                "g.11.47530496-47537770",
-                "r.11.47530496-47537770",
-                "i.11.47530496-47537770",
-            ],
-        },
-        {
-            "id": "rgb.11.47518557-47519863",
-            "output_dir": "/mnt/EXT4/hips/dc2/test02/bands/11.47518557-47519863.643/rgb",
-            "slurm_job_dependencies": [
-                "g.11.47518557-47519863",
-                "r.11.47518557-47519863",
-                "i.11.47518557-47519863",
-            ],
-        },
-    ]
+    hipsimage = HipsParallelByRegions(args.config, index_path)
+    jobs = hipsimage.submit_jobs()
 
     hipsconcat = HipsHierarchicalConcat(args.config, jobs)
     print("\nStarting HipsGen processing...")

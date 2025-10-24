@@ -263,11 +263,9 @@ def main():
 
     args = parser.parse_args()
 
-    # hipsindex = HipsCreateIndex(args.config)
-    # job = hipsindex.submit()
-    # index_path = job["output_dir"]
-
-    index_path = "/mnt/EXT4/hips/dc2/test02/index/"
+    hipsindex = HipsCreateIndex(args.config)
+    job = hipsindex.submit()
+    index_path = job["output_dir"]
 
     hipsimage = HipsParallelByRegions(args.config, index_path)
 

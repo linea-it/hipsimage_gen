@@ -31,7 +31,6 @@ class HipsConcat:
 
         self.config = create_concat_config(config)
         self.dryrun = config.get("dryrun", False)
-        config.pop("inputs", None)
 
         self.alladin_cmd = config.get("aladin_cmd", "Aladin.jar")
         self.max_mem = str(config.get("max_mem", "2"))

@@ -32,6 +32,8 @@ class HipsParallelByRegions:
         self.rgb_config = create_rgb_config(config)
         self.config = create_config_by_band(config)
         self.dryrun = config.get("dryrun", False)
+        self.creator_did = config.get("hipsgen", {}).pop("creator_did", "CDS/P/HIPS")
+
         self.alladin_cmd = config.get("aladin_cmd", "Aladin.jar")
         self.max_mem = str(config.get("max_mem", "2"))
         self.output_dir = Path(config.get("output_dir", "."), "bands")
@@ -114,6 +116,7 @@ class HipsParallelByRegions:
             band_output_dir.mkdir(exist_ok=True)
 
             config["out"] = str(band_output_dir)
+            config["creator_did"] = f"{self.creator_did}/{region_id.replace('.', '_')}"
 
             config_file = create_config_file(config, str(band_output_dir / "config"))
 
@@ -194,6 +197,7 @@ class HipsParallelByRegions:
         rgb_config = self.rgb_config.copy()
         rgb_config = self.update_rgb_config_input_paths(rgb_config, jobs)
         rgb_config["out"] = str(rgb_output_dir)
+        rgb_config["creator_did"] = f"{self.creator_did}/{region_id.replace('.', '_')}"
 
         config_file = create_config_file(rgb_config, str(rgb_output_dir / "config"))
         cmd = prepare_sbatch_cmd(
@@ -239,7 +243,8 @@ class HipsParallelByRegions:
         for band, color in self.mapping_colors.items():
             job_info = jobs.get(band, None)
             if job_info:
-                rgb_config[color] = job_info.get("output_dir")
+                color = color.capitalize()
+                rgb_config[f"in{color}"] = job_info.get("output_dir")
             else:
                 raise HipsParallelByRegionsError(f"No job info found for band {band}!")
 
@@ -264,9 +269,11 @@ def main():
 
     args = parser.parse_args()
 
-    hipsindex = HipsCreateIndex(args.config)
-    job = hipsindex.submit()
-    index_path = job["output_dir"]
+    # hipsindex = HipsCreateIndex(args.config)
+    # job = hipsindex.submit()
+    # index_path = job["output_dir"]
+
+    index_path = "/mnt/EXT4/hips/dc2/test02/index/"
 
     hipsimage = HipsParallelByRegions(args.config, index_path)
 

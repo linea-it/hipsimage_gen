@@ -116,7 +116,7 @@ class HipsParallelByRegions:
             band_output_dir.mkdir(exist_ok=True)
 
             config["out"] = str(band_output_dir)
-            config["creator_did"] = f"{self.creator_did}/{region_id.replace('.', '_')}"
+            config["creator_did"] = f"{self.creator_did}/{region_id.replace('.', '/')}"
 
             config_file = create_config_file(config, str(band_output_dir / "config"))
 
@@ -191,7 +191,7 @@ class HipsParallelByRegions:
         rgb_config = self.rgb_config.copy()
         rgb_config = self.update_rgb_config_input_paths(rgb_config, jobs)
         rgb_config["out"] = str(rgb_output_dir)
-        rgb_config["creator_did"] = f"{self.creator_did}/{region_id.replace('.', '_')}"
+        rgb_config["creator_did"] = f"{self.creator_did}/{region_id.replace('.', '/')}"
 
         config_file = create_config_file(rgb_config, str(rgb_output_dir / "config"))
         cmd = prepare_sbatch_cmd(

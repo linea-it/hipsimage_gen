@@ -36,7 +36,7 @@ class HipsParallelByRegions:
 
         self.alladin_cmd = config.get("aladin_cmd", "Aladin.jar")
         self.max_mem = str(config.get("max_mem", "2"))
-        self.output_dir = Path(config.get("output_dir", "."), "bands")
+        self.output_dir = Path(config.get("output_dir", "."), "regions")
         self.output_dir.mkdir(exist_ok=True)
         self.regions, self.npixs_count = self.__get_regions(index_path)
 

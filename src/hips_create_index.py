@@ -100,7 +100,7 @@ def main():
     )
     print(f"Working directory: {hipsimage.output_dir}")
 
-    print("/n/nSubmitting job...")
+    print("\n\nSubmitting job...")
     job = hipsimage.submit()
     print(f"  Job: {job}")
 

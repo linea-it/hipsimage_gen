@@ -156,16 +156,10 @@ class HipsParallelByRegions:
             jobs = job["jobs"]
             region_output_dir = job["output_dir"]
 
-            print("\n---------------------------")
-            print(f"Submitted jobs for region {region_id}:")
-            for band, job in jobs.items():
-                print(f"  Band {band}: {job}")
-            print("---------------------------\n")
-
             job_consolidate = self.submit_consolidate_rgb(
                 region_id, region_output_dir, jobs
             )
-            print(f"Submitted RGB consolidate job: {job_consolidate}")
+            print(f"Submitted jobs by region {region}: {job_consolidate}")
 
             self.__jobs_submitted.append(job_consolidate)
         return self.jobs_submitted

@@ -112,15 +112,15 @@ class HipsConcat:
             else:
                 job_id = submit_slurm_job(
                     cmd,
-                    work_dir=str(self.output_dir.parent.absolute()),
+                    work_dir=str(self.output_dir.absolute()),
                 )
-                print(f"Submitted concat job {job_id}")
 
             job = {
                 "id": job_id,
                 "output_dir": self.main_job.get("output_dir"),
                 "slurm_job_dependencies": dependencies,
             }
+            print(f"Submitted concat job {job}")
 
             submitted_jobs.append(job)
 

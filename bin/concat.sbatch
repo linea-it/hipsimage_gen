@@ -3,7 +3,7 @@
 #SBATCH -p cpu
 #SBATCH -N 1
 #SBATCH -n 1
-#SBATCH --cpus-per-task=5
+#SBATCH --cpus-per-task=11
 #SBATCH --propagate=NPROC
 
 # Concatenação hierárquica de HiPS
@@ -11,4 +11,4 @@
 # $2 = aladin_jar
 # $3 = config_file
 
-java -Xmx$1g -jar $2 -hipsgen -nocolor -param=$3 CONCAT
+java -Xmx20g -jar $2 -hipsgen -nocolor -maxthread=10 -param=$3 CONCAT

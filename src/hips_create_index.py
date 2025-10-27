@@ -51,6 +51,9 @@ class HipsCreateIndex:
 
         config = self.config.copy()
         config["out"] = str(self.output_dir)
+        tmp_dir = self.output_dir / "tmp"
+        tmp_dir.mkdir(exist_ok=True)
+        config["cache"] = str(tmp_dir)
 
         config_output_path = str(self.output_dir / "config")
 

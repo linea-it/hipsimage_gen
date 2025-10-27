@@ -31,7 +31,7 @@ class HipsConcat:
 
         self.config = create_concat_config(config)
         self.dryrun = config.get("dryrun", False)
-
+        self.creator_did = config.get("hipsgen", {}).pop("creator_did", "CDS/P/HIPS")
         self.alladin_cmd = config.get("aladin_cmd", "Aladin.jar")
         self.max_mem = str(config.get("max_mem", "2"))
         self.output_dir = Path(config.get("output_dir", "."), "concat")
@@ -84,6 +84,10 @@ class HipsConcat:
             config_concat = self.config.copy()
             config_concat["in"] = job.get("output_dir")
             config_concat["out"] = self.main_job.get("output_dir")
+            concat_tmp_dir = self.main_job.get("output_dir") / "concat-tmp"
+            concat_tmp_dir.mkdir(exist_ok=True)
+            config_concat["cache"] = str(concat_tmp_dir)
+            config_concat["creator_did"] = f"{self.creator_did}/{str(job.get('id'))}"
 
             config_file = create_config_file(
                 config_concat,

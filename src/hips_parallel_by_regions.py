@@ -2,6 +2,7 @@
 
 import argparse
 import sys
+import os
 from glob import glob
 from pathlib import Path
 from typing import Dict, List
@@ -38,7 +39,8 @@ class HipsParallelByRegions:
         self.max_mem = str(config.get("max_mem", "2"))
         self.output_dir = Path(config.get("output_dir", "."), "regions")
         self.output_dir.mkdir(exist_ok=True)
-        self.regions, self.npixs_count = self.__get_regions(index_path)
+        self.index_path = f"{index_path}/HpxFinder"
+        self.regions, self.npixs_count = self.__get_regions()
 
         self.mapping_colors = {
             "i": "red",
@@ -53,9 +55,9 @@ class HipsParallelByRegions:
         """Return the submitted jobs"""
         return self.__jobs_submitted
 
-    def __get_regions(self, index_path: str):
+    def __get_regions(self):
         """ """
-        ndirs = glob(f"{index_path}/HpxFinder/Norder*/Dir*")
+        ndirs = glob(f"{self.index_path}/Norder*/Dir*")
         regions = []
         npixs_count = []
 
@@ -115,7 +117,22 @@ class HipsParallelByRegions:
             band_output_dir = region_output_dir / band
             band_output_dir.mkdir(exist_ok=True)
 
+            hpx = band_output_dir / "HpxFinder"
+
+            if hpx.exists() or hpx.is_symlink():
+                hpx.unlink()
+
+            os.symlink(
+                self.index_path,
+                str(band_output_dir / "HpxFinder"),
+                target_is_directory=True,
+            )
+
             config["out"] = str(band_output_dir)
+            band_tmp_dir = band_output_dir / "tmp"
+            band_tmp_dir.mkdir(exist_ok=True)
+            config["cache"] = str(band_tmp_dir)
+
             config["creator_did"] = f"{self.creator_did}/{region_id.replace('.', '/')}"
 
             config_file = create_config_file(config, str(band_output_dir / "config"))
@@ -191,6 +208,9 @@ class HipsParallelByRegions:
         rgb_config = self.rgb_config.copy()
         rgb_config = self.update_rgb_config_input_paths(rgb_config, jobs)
         rgb_config["out"] = str(rgb_output_dir)
+        rgb_tmp_dir = rgb_output_dir / "tmp"
+        rgb_tmp_dir.mkdir(exist_ok=True)
+        rgb_config["cache"] = str(rgb_tmp_dir)
         rgb_config["creator_did"] = f"{self.creator_did}/{region_id.replace('.', '/')}"
 
         config_file = create_config_file(rgb_config, str(rgb_output_dir / "config"))
@@ -263,9 +283,11 @@ def main():
 
     args = parser.parse_args()
 
-    hipsindex = HipsCreateIndex(args.config)
-    job = hipsindex.submit()
-    index_path = job["output_dir"]
+    # hipsindex = HipsCreateIndex(args.config)
+    # job = hipsindex.submit()
+    # index_path = job["output_dir"]
+
+    index_path = "/mnt/EXT4/hips/dc2/test02/index"
 
     hipsimage = HipsParallelByRegions(args.config, index_path)
 

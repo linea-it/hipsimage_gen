@@ -1,11 +1,17 @@
 #!/bin/bash
 #SBATCH -J HipsINDEX
 #SBATCH -p cpu
-#SBATCH -N 1
 #SBATCH -n 1
 #SBATCH --cpus-per-task=56
+#SBATCH --mem=120G
 #SBATCH --propagate=NPROC
+#SBATCH --time=10:00:00
 
+MAX_THREADS=${SLURM_CPUS_PER_TASK}
+MAX_MEM="118G"
 
-java -Xmx120g -jar $2 -hipsgen -nocolor -maxthread=55 -param=$3 INDEX
-
+srun --cpu-bind=cores java -Xms${MAX_MEM} -Xmx${MAX_MEM} -jar "$2" -hipsgen \
+    -nocolor \
+    maxthread="${MAX_THREADS}" \
+    partitioning=false \
+    -param="$3" INDEX

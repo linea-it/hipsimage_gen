@@ -208,6 +208,7 @@ class HipsParallelByRegions:
         rgb_config = self.rgb_config.copy()
         rgb_config = self.update_rgb_config_input_paths(rgb_config, jobs)
         rgb_config["out"] = str(rgb_output_dir)
+
         rgb_tmp_dir = rgb_output_dir / "tmp"
         rgb_tmp_dir.mkdir(exist_ok=True)
         rgb_config["cache"] = str(rgb_tmp_dir)

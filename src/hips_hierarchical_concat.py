@@ -88,7 +88,7 @@ class HipsHierarchicalConcat:
                 config_concat = self.config.copy()
                 config_concat["in"] = job_in.get("output_dir")
                 config_concat["out"] = job_out.get("output_dir")
-                concat_tmp_dir = job_out.get("output_dir") / "concat-tmp"
+                concat_tmp_dir = Path(job_out.get("output_dir")) / "concat-tmp"
                 concat_tmp_dir.mkdir(exist_ok=True)
                 config_concat["cache"] = str(concat_tmp_dir)
                 config_concat["creator_did"] = f"{self.creator_did}/{pair_id}"

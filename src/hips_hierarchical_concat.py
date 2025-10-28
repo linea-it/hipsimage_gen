@@ -25,7 +25,7 @@ class HipsHierarchicalConcatError(Exception):
 class HipsHierarchicalConcat:
     """Class to handle HipsGen creation from config file"""
 
-    def __init__(self, config: Dict, jobs: List[Dict]) -> None:
+    def __init__(self, config: Dict, jobs: List[Dict] = None) -> None:
 
         with open(config, "r", encoding="utf-8") as f:
             config = safe_load(f)
@@ -40,6 +40,10 @@ class HipsHierarchicalConcat:
         self.max_mem = str(config.get("max_mem", "2"))
         self.output_dir = Path(config.get("output_dir", "."), "concat")
         self.output_dir.mkdir(exist_ok=True)
+
+        if not jobs:
+            jobs = self.__get_jobs_from_dir(Path(self.output_dir).parent)
+
         self.__jobs = self.__sorted_jobs(jobs)
 
         for job in self.__jobs:
@@ -50,6 +54,21 @@ class HipsHierarchicalConcat:
     def jobs(self) -> List[Dict]:
         """Return the submitted jobs"""
         return self.__jobs
+
+    def __get_jobs_from_dir(self, dir_path: Path) -> List[Dict]:
+        """Get jobs from directory"""
+
+        regions_path = dir_path / "regions"
+
+        jobs = []
+        for job_dir in regions_path.glob("*"):
+            if job_dir.is_dir():
+                job = {
+                    "output_dir": f"{str(job_dir)}/rgb",
+                }
+                jobs.append(job)
+
+        return jobs
 
     def __sorted_jobs(self, jobs: List[Dict]):
         """Sort jobs by npixs"""
@@ -99,11 +118,21 @@ class HipsHierarchicalConcat:
                 )
 
                 dependencies = [
-                    job_in.get("id"),
-                    job_out.get("id"),
+                    dep
+                    for dep in set(
+                        [
+                            job_in.get("id", None),
+                            job_out.get("id", None),
+                        ]
+                    )
+                    if dep is not None
                 ]
 
-                dep_str = ":".join(map(str, dependencies))
+                if dependencies:
+                    dep_str = ":".join(map(str, dependencies))
+                else:
+                    dep_str = None
+
                 cmd = prepare_sbatch_cmd(
                     "concat.sbatch",
                     config_file=str(config_file),

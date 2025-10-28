@@ -25,7 +25,7 @@ class HipsParallelByRegionsError(Exception):
 class HipsParallelByRegions:
     """Class to handle HipsGen creation from config file"""
 
-    def __init__(self, config: Dict, index_path: str) -> None:
+    def __init__(self, config: Dict, index_path: str = None) -> None:
 
         with open(config, "r", encoding="utf-8") as f:
             config = safe_load(f)
@@ -39,6 +39,8 @@ class HipsParallelByRegions:
         self.max_mem = str(config.get("max_mem", "2"))
         self.output_dir = Path(config.get("output_dir", "."), "regions")
         self.output_dir.mkdir(exist_ok=True)
+        if not index_path:
+            index_path = f'{config.get("output_dir", ".")}/index'
         self.index_path = f"{index_path}/HpxFinder"
         self.regions, self.npixs_count = self.__get_regions()
 

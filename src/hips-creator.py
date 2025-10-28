@@ -9,7 +9,6 @@ def main():
 
     from hips_create_index import HipsCreateIndex
     from hips_parallel_by_regions import HipsParallelByRegions
-    from hips_concat import HipsConcat
     from hips_hierarchical_concat import HipsHierarchicalConcat
 
     parser = argparse.ArgumentParser(
@@ -24,36 +23,35 @@ def main():
     )
 
     parser.add_argument(
-        "-m",
-        "--mode",
+        "-p",
+        "--phases",
         type=str,
-        default="single",
-        help="Mode to run the script (single or hierarchical)",
+        help="Executes a specific phases: index, regions and concat",
     )
 
     args = parser.parse_args()
 
-    hipsindex = HipsCreateIndex(args.config)
-    job = hipsindex.submit()
-    index_path = job["output_dir"]
+    phases = ["index", "regions", "concat"]
 
-    hipsimage = HipsParallelByRegions(args.config, index_path)
-    jobs = hipsimage.submit_jobs()
+    index_path = jobs = None
 
-    print("\nStarting HipsGen processing...")
-    print(
-        f"Using Aladin command: java -Xmx{hipsimage.max_mem}g -jar {hipsimage.alladin_cmd}"
-    )
+    if args.phases:
+        phases = args.phases
+        phases = phases.split(",")
 
-    if args.mode == "hierarchical":
-        hipsconcat = HipsHierarchicalConcat(args.config, jobs)
-        concat_jobs = hipsconcat.execute_hierarchical_concatenation()
-    else:
-        hipsconcat = HipsConcat(args.config, jobs)
-        concat_jobs = hipsconcat.make_concat_jobs()
+    if "index" in phases:
+        hipsindex = HipsCreateIndex(args.config)
+        job = hipsindex.submit()
+        index_path = job["output_dir"]
 
-    print("\n\nSubmitting concat jobs...")
-    for job in concat_jobs:
+    if "regions" in phases:
+        hipsimage = HipsParallelByRegions(args.config, index_path=index_path)
+        jobs = hipsimage.submit_jobs()
+
+    if "concat" in phases:
+        hipsconcat = HipsHierarchicalConcat(args.config, jobs=jobs)
+        job = hipsconcat.execute_hierarchical_concatenation()
+        print("\n\nSubmitting concat job...")
         print(f"  Job: {job}")
 
 

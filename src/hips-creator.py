@@ -2,7 +2,6 @@
 
 import argparse
 import sys
-from pathlib import Path
 from yaml import safe_load
 
 
@@ -38,7 +37,7 @@ def main():
     with open(args.config, "r", encoding="utf-8") as f:
         config = safe_load(f)
     output_dir = config.get("output_dir", ".")
-    
+
     # Initialize execution tracker
     tracker = ExecutionTracker(output_dir)
 
@@ -64,11 +63,15 @@ def main():
         jobs = hipsimage.submit_jobs()
         # Track all region jobs
         for job in jobs:
-            tracker.add_phase_job("regions", job["id"], {
-                "output_dir": job["output_dir"],
-                "dependencies": job.get("slurm_job_dependencies", [])
-            })
-        tracker.end_phase("regions")
+            tracker.add_phase_job(
+                "regions",
+                job["id"],
+                {
+                    "output_dir": job["output_dir"],
+                    "dependencies": job.get("slurm_job_dependencies", []),
+                },
+            )
+        tracker.submitted_phase("regions")
 
     if "concat" in phases:
         tracker.start_phase("concat")
@@ -79,19 +82,27 @@ def main():
         # Track concat jobs (can be multiple)
         if isinstance(concat_jobs, list):
             for job in concat_jobs:
-                tracker.add_phase_job("concat", job["id"], {
-                    "output_dir": job.get("output_dir", ""),
-                    "dependencies": job.get("slurm_job_dependencies", [])
-                })
+                tracker.add_phase_job(
+                    "concat",
+                    job["id"],
+                    {
+                        "output_dir": job.get("output_dir", ""),
+                        "dependencies": job.get("slurm_job_dependencies", []),
+                    },
+                )
         else:
-            tracker.add_phase_job("concat", concat_jobs["id"], {
-                "output_dir": concat_jobs.get("output_dir", ""),
-                "dependencies": concat_jobs.get("slurm_job_dependencies", [])
-            })
-        tracker.end_phase("concat")
-    
+            tracker.add_phase_job(
+                "concat",
+                concat_jobs["id"],
+                {
+                    "output_dir": concat_jobs.get("output_dir", ""),
+                    "dependencies": concat_jobs.get("slurm_job_dependencies", []),
+                },
+            )
+        tracker.submitted_phase("concat")
+
     # Generate and save execution report
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print(tracker.generate_report())
     tracker.save_report()
 

@@ -184,7 +184,7 @@ class ExecutionTracker:
 
             phase = self.tracking_data["phases"][phase_name]
             report_lines.append(f"Phase: {phase_name.upper()}")
-            report_lines.append(f"  Status: {phase.get('status', 'unknown')}")
+            report_lines.append(f"  Status: {phase.get('status', 'Queued')}")
             report_lines.append(f"  Started: {phase.get('started_at', 'N/A')}")
             report_lines.append(f"  Ended: {phase.get('ended_at', 'N/A')}")
             report_lines.append(f"  Exec Time: {phase.get('exec_time', 'N/A')}")
@@ -274,7 +274,6 @@ class ExecutionTracker:
                 phase_info["status"] = "completed"
                 phase_info["ended_at"] = str(max(job_ends))
 
-
             print(job_starts)
             print(job_ends)
             if job_starts and job_ends:
@@ -299,7 +298,6 @@ class ExecutionTracker:
                 phase_times[phase_name] = str(end - start)
                 phase_info["exec_time"] = str(end - start)
                 phase_info["status"] = "completed"
-
 
         # 2. Calcular o tempo de execução total (Wall-Clock)
         if all_job_starts and all_job_ends:

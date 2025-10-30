@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Query and display HiPS execution tracking information."""
 
+import json
 import argparse
 import sys
 from pathlib import Path
@@ -10,6 +11,7 @@ from execution_tracker import ExecutionTracker
 
 def main():
     """Main function to query execution status"""
+
     parser = argparse.ArgumentParser(
         description="Query HiPS execution tracking information"
     )
@@ -60,7 +62,6 @@ def main():
         print("Update complete.\n")
 
     if args.json:
-        import json
         print(json.dumps(tracker.tracking_data, indent=2))
     else:
         report = tracker.generate_report()

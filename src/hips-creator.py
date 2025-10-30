@@ -77,28 +77,18 @@ def main():
         tracker.start_phase("concat")
         hipsconcat = HipsHierarchicalConcat(args.config, jobs=jobs)
         concat_jobs = hipsconcat.execute_hierarchical_concatenation()
-        print("\n\nSubmitting concat job...")
-        print(f"  Job: {concat_jobs}")
+
         # Track concat jobs (can be multiple)
-        if isinstance(concat_jobs, list):
-            for job in concat_jobs:
-                tracker.add_phase_job(
-                    "concat",
-                    job["id"],
-                    {
-                        "output_dir": job.get("output_dir", ""),
-                        "dependencies": job.get("slurm_job_dependencies", []),
-                    },
-                )
-        else:
+        for job in concat_jobs:
             tracker.add_phase_job(
                 "concat",
-                concat_jobs["id"],
+                job["id"],
                 {
-                    "output_dir": concat_jobs.get("output_dir", ""),
-                    "dependencies": concat_jobs.get("slurm_job_dependencies", []),
+                    "output_dir": job.get("output_dir", ""),
+                    "dependencies": job.get("slurm_job_dependencies", []),
                 },
             )
+
         tracker.submitted_phase("concat")
 
     # Generate and save execution report

@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
-""" """
 
 import argparse
-import shutil
 import sys
 from pathlib import Path
 from typing import Dict, List, Tuple
@@ -16,10 +14,6 @@ from utils import (
     create_config_file,
     group_into_pairs,
 )
-
-
-class HipsHierarchicalConcatError(Exception):
-    """ """
 
 
 class HipsHierarchicalConcat:
@@ -45,10 +39,6 @@ class HipsHierarchicalConcat:
             jobs = self.__get_jobs_from_dir(Path(self.output_dir).parent)
 
         self.__jobs = self.__sorted_jobs(jobs)
-
-        for job in self.__jobs:
-            job_output = Path(job["output_dir"])
-            print(job_output)
 
     @property
     def jobs(self) -> List[Dict]:
@@ -81,11 +71,13 @@ class HipsHierarchicalConcat:
         return sorted(jobs, key=lambda x: x["npixs"])
 
     def execute_hierarchical_concatenation(self) -> Tuple[str, List[int]]:
-        """NOne"""
+        """Execute hierarchical concatenation"""
+
         current_level_outputs = self.jobs.copy()
         level = 0
+        jobs = []
 
-        print(f"Iniciando com {len(current_level_outputs)} partitions")
+        print(f"Beginning with {len(current_level_outputs)} partitions")
 
         while len(current_level_outputs) > 1:
             level += 1
@@ -97,7 +89,7 @@ class HipsHierarchicalConcat:
             for pair_idx, pair in enumerate(pairs):
                 job_in = pair[0]
                 if len(pair) == 1:
-                    # Item sozinho, passa direto para próximo nível
+                    # Item alone, skips directly to the next level.
                     next_level_outputs.append(job_in)
                     continue
 
@@ -159,14 +151,13 @@ class HipsHierarchicalConcat:
                     "slurm_job_dependencies": dependencies,
                 }
 
+                jobs.append(job)
                 next_level_outputs.append(job)
 
             current_level_outputs = next_level_outputs
 
-        main_job = current_level_outputs[0]
-        print(f"  Resultado final: {main_job}")
-
-        return main_job
+        print(f"  Jobs: {jobs}")
+        return jobs
 
 
 def main():

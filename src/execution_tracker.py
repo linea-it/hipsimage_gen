@@ -175,7 +175,6 @@ class ExecutionTracker:
             "=" * 80,
             "HiPS Generation Execution Report",
             "=" * 80,
-            f"\nStarted at: {self.tracking_data.get('started_at', 'N/A')}",
             "\n" + "-" * 80,
         ]
 
@@ -184,7 +183,7 @@ class ExecutionTracker:
                 continue
 
             phase = self.tracking_data["phases"][phase_name]
-            report_lines.append(f"\nPhase: {phase_name.upper()}")
+            report_lines.append(f"Phase: {phase_name.upper()}")
             report_lines.append(f"  Status: {phase.get('status', 'unknown')}")
             report_lines.append(f"  Started: {phase.get('started_at', 'N/A')}")
             report_lines.append(f"  Ended: {phase.get('ended_at', 'N/A')}")
@@ -197,7 +196,6 @@ class ExecutionTracker:
                 report_lines.append(f"  Job IDs: {', '.join(map(str, job_ids))}")
 
                 # Aggregate statistics
-                total_elapsed = 0
                 completed = 0
                 failed = 0
 
@@ -212,30 +210,15 @@ class ExecutionTracker:
                         elif "FAILED" in state or "CANCELLED" in state:
                             failed += 1
 
-                        elapsed = slurm_info.get("elapsed", "")
-                        if elapsed:
-                            total_elapsed += self._parse_elapsed_time(elapsed)
-
                 report_lines.append(f"  Completed: {completed}")
                 report_lines.append(f"  Failed: {failed}")
-
-                if total_elapsed > 0:
-                    report_lines.append(
-                        f"  Total Elapsed Time: {self._format_seconds(total_elapsed)}"
-                    )
-                    if completed > 0:
-                        avg_time = total_elapsed / completed
-                        report_lines.append(
-                            f"  Average Job Time: {self._format_seconds(avg_time)}"
-                        )
 
             report_lines.append("-" * 80)
 
         # Overall summary
         if "ended_at" in self.tracking_data:
-            report_lines.append(f"\nCompleted at: {self.tracking_data['ended_at']}")
             report_lines.append(
-                f"\nExecution Time: {self.tracking_data['total_execution_time']}"
+                f"\nExecution Time: {self.tracking_data['total_execution_time']}\n"
             )
 
         report_lines.append("=" * 80)
@@ -246,12 +229,15 @@ class ExecutionTracker:
     # Os tempos do SLURM estão sem microssegundos.
     def _parse_time(self, time_str: str) -> datetime:
         """Analyze datetime strings"""
+
+        if time_str == "Unknown":
+            return None
+
         try:
             # Tenta analisar com microssegundos
             # (de 'started_at' no JSON principal e blocos de fase)
             return datetime.strptime(time_str, "%Y-%m-%dT%H:%M:%S.%f")
         except ValueError:
-            # Recorre à análise sem microssegundos (de 'slurm_info' start/end)
             return datetime.strptime(time_str, "%Y-%m-%dT%H:%M:%S")
 
     def calculate_times(self) -> Dict[str, str]:
@@ -272,22 +258,32 @@ class ExecutionTracker:
             for job_id in phase_job_ids:
                 if job_id in job_details:
                     slurm_info = job_details[job_id].get("slurm_info")
+                    if slurm_info and slurm_info.get("start", None):
+                        start_time = self._parse_time(slurm_info["start"])
+                        if start_time:
+                            job_starts.append(start_time)
+                        all_job_starts.append(start_time)
                     if slurm_info and slurm_info.get("state") == "COMPLETED":
                         # Usar o tempo do SLURM (sem microssegundos)
-                        start_time = self._parse_time(slurm_info["start"])
                         end_time = self._parse_time(slurm_info["end"])
-                        job_starts.append(start_time)
-                        job_ends.append(end_time)
-                        all_job_starts.append(start_time)
-                        all_job_ends.append(end_time)
+                        if end_time:
+                            job_ends.append(end_time)
+                            all_job_ends.append(end_time)
 
+            if len(phase_job_ids) == len(job_ends):
+                phase_info["status"] = "completed"
+                phase_info["ended_at"] = str(max(job_ends))
+
+
+            print(job_starts)
+            print(job_ends)
             if job_starts and job_ends:
                 # Tempo Wall-clock para a fase é do start mais cedo ao end mais tarde
                 phase_start = min(job_starts)
                 phase_end = max(job_ends)
                 phase_duration = phase_end - phase_start
                 phase_times[phase_name] = str(phase_duration)
-                self.tracking_data[phase_name]["exec_time"] = str(phase_duration)
+                phase_info["exec_time"] = str(phase_duration)
             elif (
                 (
                     phase_info["status"] == "completed"
@@ -301,7 +297,9 @@ class ExecutionTracker:
                 start = self._parse_time(phase_info["started_at"])
                 end = self._parse_time(phase_info["ended_at"])
                 phase_times[phase_name] = str(end - start)
-                self.tracking_data[phase_name]["exec_time"] = str(end - start)
+                phase_info["exec_time"] = str(end - start)
+                phase_info["status"] = "completed"
+
 
         # 2. Calcular o tempo de execução total (Wall-Clock)
         if all_job_starts and all_job_ends:
@@ -313,6 +311,7 @@ class ExecutionTracker:
             overall_end = max(all_job_ends)
             total_wall_clock_duration = overall_end - overall_start
             results["total_execution_time"] = str(total_wall_clock_duration)
+            self.tracking_data["ended_at"] = datetime.now().isoformat()
         else:
             results["total_execution_time"] = (
                 "N/A (No completed jobs found with SLURM times)"

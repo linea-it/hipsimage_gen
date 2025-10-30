@@ -42,7 +42,7 @@ class ExecutionTracker:
         """Mark the start of a phase
 
         Args:
-            phase_name: Name of the phase (index, regions, concat)
+            phase_name: Name of the phase (index, regions, concat, concat_serial)
             job_id: Optional Slurm job ID associated with the phase
         """
         if phase_name not in self.tracking_data["phases"]:
@@ -179,7 +179,7 @@ class ExecutionTracker:
             "\n" + "-" * 80,
         ]
 
-        for phase_name in ["index", "regions", "concat"]:
+        for phase_name in ["index", "regions", "concat", "concat_serial"]:
             if phase_name not in self.tracking_data["phases"]:
                 continue
 

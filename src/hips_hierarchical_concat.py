@@ -186,15 +186,8 @@ def main():
     jobs = hipsimage.submit_jobs()
 
     hipsconcat = HipsHierarchicalConcat(args.config, jobs)
-    print("\nStarting HipsGen processing...")
-    print(
-        f"Using Aladin command: java -Xmx{hipsconcat.max_mem}g -jar {hipsconcat.alladin_cmd}"
-    )
-
-    job = hipsconcat.execute_hierarchical_concatenation()
-    print("\n\nSubmitting concat jobs...")
-
-    print(f"  Job: {job}")
+    jobs = hipsconcat.execute_hierarchical_concatenation()
+    print(f"  Jobs: {jobs}")
 
 
 if __name__ == "__main__":

@@ -37,6 +37,9 @@ class HipsConcat:
         self.output_dir = Path(config.get("output_dir", "."), "concat")
         self.output_dir.mkdir(exist_ok=True)
 
+        if not jobs:
+            jobs = self.__get_jobs_from_dir(Path(self.output_dir).parent)
+
         self.__jobs = self.__sorted_jobs(jobs)
         self.__main_job = self.__jobs.pop(-1)
 
@@ -53,6 +56,21 @@ class HipsConcat:
     def main_job(self) -> Dict:
         """Return the main job"""
         return self.__main_job
+
+    def __get_jobs_from_dir(self, dir_path: Path) -> List[Dict]:
+        """Get jobs from directory"""
+
+        regions_path = dir_path / "regions"
+
+        jobs = []
+        for job_dir in regions_path.glob("*"):
+            if job_dir.is_dir():
+                job = {
+                    "output_dir": f"{str(job_dir)}/rgb",
+                }
+                jobs.append(job)
+
+        return jobs
 
     def prepare_main_job(self, job: Dict):
         """Prepare main job"""
@@ -75,10 +93,12 @@ class HipsConcat:
 
         return sorted(jobs, key=lambda x: x["npixs"])
 
-    def make_concat_jobs(self):
+    def make_concat_jobs(self, parallel=False):
         """Make concat jobs"""
 
         submitted_jobs = []
+
+        current_job_id = None
 
         for job in self.jobs:
             config_concat = self.config.copy()
@@ -95,9 +115,18 @@ class HipsConcat:
             )
 
             dependencies = [
-                job.get("id"),
-                self.main_job.get("id"),
+                dep
+                for dep in set(
+                    [
+                        job.get("id", None),
+                        self.main_job.get("id", None),
+                    ]
+                )
+                if dep is not None
             ]
+
+            if not parallel and current_job_id:
+                dependencies.append(current_job_id)
 
             dep_str = ":".join(map(str, dependencies))
             cmd = prepare_sbatch_cmd(
@@ -127,6 +156,7 @@ class HipsConcat:
             print(f"Submitted concat job {job}")
 
             submitted_jobs.append(job)
+            current_job_id = job_id
 
         return submitted_jobs
 
@@ -147,6 +177,15 @@ def main():
         required=True,
         help="Path to the YAML configuration file",
     )
+
+    parser.add_argument(
+        "-p",
+        "--parallel",
+        action="store_true",
+        default=False,
+        help="Run concat jobs in parallel",
+    )
+
     args = parser.parse_args()
 
     hipsindex = HipsCreateIndex(args.config)
@@ -157,16 +196,8 @@ def main():
     jobs = hipsimage.submit_jobs()
 
     hipsconcat = HipsConcat(args.config, jobs)
-    print("\nStarting HipsGen processing...")
-    print(
-        f"Using Aladin command: java -Xmx{hipsconcat.max_mem}g -jar {hipsconcat.alladin_cmd}"
-    )
-
-    concat_jobs = hipsconcat.make_concat_jobs()
-    print("\n\nSubmitting concat jobs...")
-
-    for job in concat_jobs:
-        print(f"  Job: {job}")
+    jobs = hipsconcat.make_concat_jobs(args.parallel)
+    print(f"Jobs: {jobs}")
 
 
 if __name__ == "__main__":

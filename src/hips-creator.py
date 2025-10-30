@@ -11,6 +11,7 @@ def main():
     from hips_create_index import HipsCreateIndex
     from hips_parallel_by_regions import HipsParallelByRegions
     from hips_hierarchical_concat import HipsHierarchicalConcat
+    from hips_concat import HipsConcat
     from execution_tracker import ExecutionTracker
 
     parser = argparse.ArgumentParser(
@@ -90,6 +91,23 @@ def main():
             )
 
         tracker.submitted_phase("concat")
+    elif "concat_serial" in phases:
+        tracker.start_phase("concat_serial")
+        hipsconcat = HipsConcat(args.config, jobs=jobs)
+        concat_jobs = hipsconcat.make_concat_jobs()
+
+        # Track concat jobs (can be multiple)
+        for job in concat_jobs:
+            tracker.add_phase_job(
+                "concat_serial",
+                job["id"],
+                {
+                    "output_dir": job.get("output_dir", ""),
+                    "dependencies": job.get("slurm_job_dependencies", []),
+                },
+            )
+
+        tracker.submitted_phase("concat_serial")
 
     # Generate and save execution report
     print("\n" + "=" * 80)

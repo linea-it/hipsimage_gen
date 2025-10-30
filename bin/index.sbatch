@@ -3,7 +3,7 @@
 #SBATCH -p cpu
 #SBATCH -n 1
 #SBATCH --cpus-per-task=56
-#SBATCH --mem=120G
+#SBATCH --mem=119G
 #SBATCH --propagate=NPROC
 #SBATCH --time=10:00:00
 
@@ -13,5 +13,4 @@ MAX_MEM="118G"
 srun --cpu-bind=cores java -Xms${MAX_MEM} -Xmx${MAX_MEM} -jar "$2" -hipsgen \
     -nocolor \
     maxthread="${MAX_THREADS}" \
-    partitioning=false \
     -param="$3" INDEX

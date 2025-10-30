@@ -141,7 +141,7 @@ class HipsHierarchicalConcat:
                 else:
                     job_id = submit_slurm_job(
                         cmd,
-                        work_dir=str(self.output_dir.parent.absolute()),
+                        work_dir=str(self.output_dir.absolute()),
                     )
                     print(f"Submitted concat job {job_id}")
 

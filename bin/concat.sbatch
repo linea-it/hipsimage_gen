@@ -12,4 +12,4 @@
 # $2 = aladin_jar
 # $3 = config_file
 
-srun --cpu-bind=cores java -Xmx20g -jar "$2" -hipsgen -nocolor -maxthread=10 -param="$3" CONCAT
+srun --cpu-bind=cores java -Xmx21g -jar "$2" -hipsgen -nocolor -maxthread=10 -param="$3" CONCAT

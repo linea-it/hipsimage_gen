@@ -1,0 +1,10 @@
+#!/bin/sh
+PROGSYMLINK="$0"
+PROG=$(realpath "$PROGSYMLINK")
+PROGDIR=$(dirname "$PROG")
+PROGNAME=$(basename "$PROG")
+PYTHONPROG="$PROGDIR"/../src/"$PROGNAME".py
+
+export PYTHONPATH="$PROGDIR"/../src/:"$PYTHONPATH"
+export PATH="$PROGDIR":"$PATH"
+exec "$PYTHONPROG" $@

@@ -1,136 +1,119 @@
 #!/usr/bin/env python3
-from dataclasses import replace, fields
-from pathlib import Path
-from shutil import which
-from sys import argv
-from typing import Union
-import subprocess
-from schemas import ColorConfig, RGBConfig
+
+import argparse
+import sys
 from yaml import safe_load
-import configparser
-import io
-
-
-SBATCH_COLOR = 'color.sbatch'
-SBATCH_RGB = 'rgb.sbatch'
-COLORS = ["green", "red", "blue"]
-
-
-def parse_cmdline():
-    try:
-        conffile = argv[1]
-    except IndexError:
-        conffile = "hips.yaml"
-
-    return conffile
-
-
-def load_configuration(config):
-    _config = ColorConfig()
-    return replace(_config, **config)
-
-
-def find_prog(basename):
-    prog = which(basename)
-
-    if not prog:
-        raise RuntimeError(f"program not found: {basename}")
-
-    return prog
-
-
-def sbatch(cmd, cwd):
-
-    process = subprocess.run(cmd, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    success_msg = 'Submitted batch job'
-    stdout = process.stdout.decode('utf-8')
-
-    if success_msg in stdout:
-        job_id = int(stdout.split(' ')[3])
-    else:
-        stderr = process.stderr.decode('utf-8')
-        print("Error: %s", stderr)
-        exit(-1)
-
-    return job_id
-
-
-def create_config_file(config, name, cwd):
-
-    _config = Path(cwd, f"{name}.config")
-
-    with open(_config, "w") as _conf:
-        for field in fields(config):
-            if field.name == 'input_dir':
-                fieldname = 'in'
-                value = Path(str(getattr(config, field.name))).absolute()
-            elif field.name == 'output_dir':
-                fieldname = 'out'
-                value = Path(cwd, str(getattr(config, field.name)))
-                value.mkdir(exist_ok=True)
-                value = value.absolute()
-            else:
-                fieldname = field.name
-                value = getattr(config, field.name)
- 
-            _conf.write(f'{fieldname}="{value}"\n')
-
-    return _config
 
 
 def main():
-    """_summary_"""
+    """Main function to parse arguments and run HipsGen processing"""
 
-    conffile = parse_cmdline()
+    from hips_create_index import HipsCreateIndex
+    from hips_parallel_by_regions import HipsParallelByRegions
+    from hips_hierarchical_concat import HipsHierarchicalConcat
+    from hips_concat import HipsConcat
+    from execution_tracker import ExecutionTracker
 
-    with open(conffile, encoding="UTF-8") as _file:
-        config = safe_load(_file)
+    parser = argparse.ArgumentParser(
+        description="Create HipsGen images from config file"
+    )
+    parser.add_argument(
+        "-c",
+        "--config",
+        type=str,
+        required=True,
+        help="Path to the YAML configuration file",
+    )
 
-    aladin_cmd = config.get("aladin_cmd", "Aladin.jar")
-    cwd = Path(config.get("cwd", "."))
-    cwd.mkdir(exist_ok=True)
-    max_mem = str(config.get("max_mem", "2"))
+    parser.add_argument(
+        "-p",
+        "--phases",
+        type=str,
+        help="Executes a specific phases: index, regions and concat",
+    )
 
-    hips_config = config.pop('hipsgen')
-    hips_runs = hips_config.pop('runs')
+    args = parser.parse_args()
 
-    sbatch_color = find_prog(SBATCH_COLOR)
-    sbatch_rgb = find_prog(SBATCH_RGB)
+    # Load config to get output_dir for tracker
+    with open(args.config, "r", encoding="utf-8") as f:
+        config = safe_load(f)
+    output_dir = config.get("output_dir", ".")
 
-    colors_output = {}
-    parallel_jobs = []
+    # Initialize execution tracker
+    tracker = ExecutionTracker(output_dir)
 
-    for color in COLORS:
-        try:
-            color_config = hips_runs[color]
-            color_config.update(hips_config)
-            config = load_configuration(color_config)
-            color_config = create_config_file(config, color, cwd)
-            colors_output[f'in{color.capitalize()}'] = Path(cwd, config.output_dir).absolute()
-        except RuntimeError as e:
-            print('Error: %s' % e)
+    phases = ["index", "regions", "concat"]
 
-        cmd = ["sbatch", sbatch_color, max_mem, aladin_cmd, color_config]
+    index_path = jobs = None
 
-        try:
-            job_id = sbatch(cmd, cwd)
-            parallel_jobs.append(str(job_id))
-        except RuntimeError as e:
-            exit(-1)
+    if args.phases:
+        phases = args.phases
+        phases = phases.split(",")
 
-    rgb_config = hips_runs['rgb']
-    rgb_config.update(hips_config)
-    rgb_config.update(colors_output)
+    if "index" in phases:
+        tracker.start_phase("index")
+        hipsindex = HipsCreateIndex(args.config)
+        job = hipsindex.submit()
+        index_path = job["output_dir"]
+        tracker.add_phase_job("index", job["id"], {"output_dir": index_path})
+        tracker.end_phase("index")
 
-    rgb_config_obj = replace(RGBConfig(), **rgb_config)
+    if "regions" in phases:
+        tracker.start_phase("regions")
+        hipsimage = HipsParallelByRegions(args.config, index_path=index_path)
+        jobs = hipsimage.submit_jobs()
+        # Track all region jobs
+        for job in jobs:
+            tracker.add_phase_job(
+                "regions",
+                job["id"],
+                {
+                    "output_dir": job["output_dir"],
+                    "dependencies": job.get("slurm_job_dependencies", []),
+                },
+            )
+        tracker.submitted_phase("regions")
 
-    rgb_config_file = create_config_file(rgb_config_obj, 'rgb', cwd)
+    if "concat" in phases:
+        tracker.start_phase("concat")
+        hipsconcat = HipsHierarchicalConcat(args.config, jobs=jobs)
+        concat_jobs = hipsconcat.execute_hierarchical_concatenation()
 
-    print("Submit Consolidate with dependencies: %s" % str(parallel_jobs))
-    consolidate_job_id = sbatch(["sbatch", "--dependency=afterok:%s" % ",".join(parallel_jobs), sbatch_rgb, max_mem, aladin_cmd, rgb_config_file, str(rgb_config_obj.output_dir)], cwd)
-    print("Consolidate job ID: %s" % consolidate_job_id)
+        # Track concat jobs (can be multiple)
+        for job in concat_jobs:
+            tracker.add_phase_job(
+                "concat",
+                job["id"],
+                {
+                    "output_dir": job.get("output_dir", ""),
+                    "dependencies": job.get("slurm_job_dependencies", []),
+                },
+            )
+
+        tracker.submitted_phase("concat")
+    elif "concat_serial" in phases:
+        tracker.start_phase("concat_serial")
+        hipsconcat = HipsConcat(args.config, jobs=jobs)
+        concat_jobs = hipsconcat.make_concat_jobs()
+
+        # Track concat jobs (can be multiple)
+        for job in concat_jobs:
+            tracker.add_phase_job(
+                "concat_serial",
+                job["id"],
+                {
+                    "output_dir": job.get("output_dir", ""),
+                    "dependencies": job.get("slurm_job_dependencies", []),
+                },
+            )
+
+        tracker.submitted_phase("concat_serial")
+
+    # Generate and save execution report
+    print("\n" + "=" * 80)
+    print(tracker.generate_report())
+    tracker.save_report()
 
 
-if __name__ == '__main__':
-    main()
-
+if __name__ == "__main__":
+    sys.exit(main())

@@ -167,3 +167,4 @@ slurm*.out
 #.idea/
 
 create_hips.sh
+param.yaml

@@ -1,34 +1,29 @@
 aladin_cmd: Aladin.jar  # Aladin path
-cwd: /tmp/proc001
+dryrun: true
+output_dir: /mnt/EXT4/hips/dc2/test02
 max_mem: 2
 
 hipsgen:
-  creator_did: CDS/P/<PROJ>/<SURVEY>
+  creator_did: CDS/P/DES/DR2
   maxthread: 10
   hips_creator: LIneA
-  obs_title: 'LSST DP0'
+  obs_title: 'DES DR2'
 
   runs:
+    index:
+      in: /mnt/EXT4/datasets/dr2_images/
     blue:
-      input_dir: input_g
-      output_dir: output_g
+      in: /mnt/EXT4/datasets/dr2_images/g
       pixelcut: "-1.2 400 asinh"
-      mode: mean
-      cache: tmp_g
     red:
-      input_dir: input_i
-      output_dir: output_i
+      in: /mnt/EXT4/datasets/dr2_images/i
       pixelcut: "-1 400 asinh"
-      mode: mean
-      cache: tmp_i
     green:
-      input_dir: input_r
-      output_dir: output_r
+      in: /mnt/EXT4/datasets/dr2_images/r
       pixelcut: "-1.2 400 asinh"
-      mode: mean
-      cache: tmp_r
     rgb:
-      luptonM: "0.02/0.02/0.02"
-      luptonS: "0.005/0.005/0.007"
-      luptonQ: "30/30/30"
-
+      luptonM: "0.03/0.03/0.03" # Brightness
+      luptonS: "0.4/0.4/0.4" # Saturation
+      luptonQ: "40000/40000/40000" # Contrast
+    concat:
+      mode: overwrite

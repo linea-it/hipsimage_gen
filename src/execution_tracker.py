@@ -5,7 +5,7 @@ import json
 import subprocess
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 
 class ExecutionTracker:
@@ -169,6 +169,7 @@ class ExecutionTracker:
             Formatted string with execution statistics
         """
         self.update_jobs_info()
+        self.calculate_times()
 
         report_lines = [
             "=" * 80,
@@ -187,6 +188,7 @@ class ExecutionTracker:
             report_lines.append(f"  Status: {phase.get('status', 'unknown')}")
             report_lines.append(f"  Started: {phase.get('started_at', 'N/A')}")
             report_lines.append(f"  Ended: {phase.get('ended_at', 'N/A')}")
+            report_lines.append(f"  Exec Time: {phase.get('exec_time', 'N/A')}")
 
             job_ids = phase.get("job_ids", [])
             report_lines.append(f"  Total Jobs: {len(job_ids)}")
@@ -232,10 +234,96 @@ class ExecutionTracker:
         # Overall summary
         if "ended_at" in self.tracking_data:
             report_lines.append(f"\nCompleted at: {self.tracking_data['ended_at']}")
+            report_lines.append(
+                f"\nExecution Time: {self.tracking_data['total_execution_time']}"
+            )
 
         report_lines.append("=" * 80)
 
         return "\n".join(report_lines)
+
+    # Função para analisar strings de data/hora.
+    # Os tempos do SLURM estão sem microssegundos.
+    def _parse_time(self, time_str: str) -> datetime:
+        """Analyze datetime strings"""
+        try:
+            # Tenta analisar com microssegundos
+            # (de 'started_at' no JSON principal e blocos de fase)
+            return datetime.strptime(time_str, "%Y-%m-%dT%H:%M:%S.%f")
+        except ValueError:
+            # Recorre à análise sem microssegundos (de 'slurm_info' start/end)
+            return datetime.strptime(time_str, "%Y-%m-%dT%H:%M:%S")
+
+    def calculate_times(self) -> Dict[str, str]:
+        """Times calculates"""
+        results = {}
+        job_details = self.tracking_data["jobs"]
+        all_job_starts = []
+        all_job_ends = []
+
+        # 1. Calcular o tempo de execução para cada fase (Wall-Clock)
+        phase_times = {}
+        for phase_name, phase_info in self.tracking_data["phases"].items():
+            phase_job_ids = [str(job_id) for job_id in phase_info["job_ids"]]
+            job_starts = []
+            job_ends = []
+
+            # Encontrar os tempos de início e fim para todos os jobs na fase
+            for job_id in phase_job_ids:
+                if job_id in job_details:
+                    slurm_info = job_details[job_id].get("slurm_info")
+                    if slurm_info and slurm_info.get("state") == "COMPLETED":
+                        # Usar o tempo do SLURM (sem microssegundos)
+                        start_time = self._parse_time(slurm_info["start"])
+                        end_time = self._parse_time(slurm_info["end"])
+                        job_starts.append(start_time)
+                        job_ends.append(end_time)
+                        all_job_starts.append(start_time)
+                        all_job_ends.append(end_time)
+
+            if job_starts and job_ends:
+                # Tempo Wall-clock para a fase é do start mais cedo ao end mais tarde
+                phase_start = min(job_starts)
+                phase_end = max(job_ends)
+                phase_duration = phase_end - phase_start
+                phase_times[phase_name] = str(phase_duration)
+                self.tracking_data[phase_name]["exec_time"] = str(phase_duration)
+            elif (
+                (
+                    phase_info["status"] == "completed"
+                    or phase_info["status"] == "submitted"
+                )
+                and "started_at" in phase_info
+                and "ended_at" in phase_info
+            ):
+                # Para fases concluídas que não têm jobs SLURM
+                # (o que não parece o caso aqui, mas é uma reserva)
+                start = self._parse_time(phase_info["started_at"])
+                end = self._parse_time(phase_info["ended_at"])
+                phase_times[phase_name] = str(end - start)
+                self.tracking_data[phase_name]["exec_time"] = str(end - start)
+
+        # 2. Calcular o tempo de execução total (Wall-Clock)
+        if all_job_starts and all_job_ends:
+            # O início geral é fornecido na estrutura JSON principal
+            # (com microssegundos)
+            overall_start = self._parse_time(self.tracking_data["started_at"])
+            # O fim geral é o horário de término mais recente de
+            # qualquer job concluído (tempo SLURM)
+            overall_end = max(all_job_ends)
+            total_wall_clock_duration = overall_end - overall_start
+            results["total_execution_time"] = str(total_wall_clock_duration)
+        else:
+            results["total_execution_time"] = (
+                "N/A (No completed jobs found with SLURM times)"
+            )
+        self.tracking_data["total_execution_time"] = results["total_execution_time"]
+
+        results["phase_execution_times"] = phase_times
+        self._save_tracking_data()
+
+        # Retorna o dicionário de resultados
+        return results
 
     def _parse_elapsed_time(self, elapsed_str: str) -> float:
         """Parse Slurm elapsed time string to seconds

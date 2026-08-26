@@ -1,6 +1,6 @@
 aladin_cmd: AladinBeta.jar  # Aladin path
 cwd: /tmp/proc001
-max_mem: 2
+max_mem: 240
 
 hipsgen:
   creator_did: CDS/P/LSST/DP1

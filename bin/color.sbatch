@@ -1,7 +1,9 @@
 #!/bin/bash
 #SBATCH -J createHIPS
-#SBATCH -p cpu
+#SBATCH -p cpu_pipelines
+#SBATCH -A hpc-pipelines
 #SBATCH -N 1
+#SBATCH -c 104
 #SBATCH --exclusive
 #SBATCH --propagate=NPROC
 

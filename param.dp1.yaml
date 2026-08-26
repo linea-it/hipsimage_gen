@@ -1,0 +1,31 @@
+aladin_cmd: AladinBeta.jar  # Aladin path
+cwd: /tmp/proc001
+max_mem: 2
+
+hipsgen:
+  creator_did: CDS/P/LSST/DP1
+  maxthread: 100
+  hips_creator: LIneA
+  obs_title: 'LSST DP1'
+
+  runs:
+    blue:
+      input_dir: input_g
+      output_dir: output_g
+      mode: mean
+      cache: tmp_g
+    red:
+      input_dir: input_i
+      output_dir: output_i
+      mode: mean
+      cache: tmp_i
+    green:
+      input_dir: input_r
+      output_dir: output_r
+      mode: mean
+      cache: tmp_r
+    rgb:
+      luptonM: "0.01/0.01/0.02"
+      luptonS: "0.007/0.007/0.009"
+      luptonQ: "20"
+
